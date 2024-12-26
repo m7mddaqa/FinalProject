@@ -3,6 +3,8 @@
 # dependencies
 clientside/node_modules/
 
+#txt for github
+.git/push_pull.txt
 # Expo
 clientside/.expo/
 clientside/dist/
