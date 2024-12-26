@@ -1,5 +1,4 @@
-import { StyleSheet } from 'react-native';
-
+import { StyleSheet } from "react-native";
 export const styles = StyleSheet.create({
     container: {
         flex: 1,
@@ -7,18 +6,6 @@ export const styles = StyleSheet.create({
         alignItems: 'center',
         backgroundColor: '#f5f5f5',
         padding: 20,
-    },
-    frameContainer: {
-        width: '100%',
-        maxWidth: 400,
-        backgroundColor: '#fff',
-        padding: 20,
-        borderRadius: 10,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 5,
-        elevation: 3,
     },
     header: {
         fontSize: 26,
@@ -38,35 +25,43 @@ export const styles = StyleSheet.create({
         fontSize: 16,
         color: '#333',
     },
-    SignupButton: {
+    signInButton: {
         backgroundColor: '#007AFF',
         paddingVertical: 12,
         borderRadius: 8,
         alignItems: 'center',
-        marginBottom: 5,
+        marginBottom: 15,
     },
     buttonText: {
         fontSize: 16,
         color: '#fff',
         fontWeight: 'bold',
     },
-    loginNavigate: {
+    rowContainer: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    rowContainerText: {
+        fontSize: 14,
+        color: '#333',
+    },
+    signUpText: {
         fontSize: 14,
         fontWeight: 'bold',
         color: '#007AFF',
-        flexDirection: 'row',
-        marginBottom: 10,
-        marginTop: 2
     },
-    errorText: {
-        fontSize: 14,
-        color: 'red',
-        marginBottom: 15,
-        textAlign: 'center',
-    },
-    bottomButtons: {
-        flexDirection: 'row',
-        gap: 25
+    frameContainer: {
+        width: '100%',
+        maxWidth: 400,
+        backgroundColor: '#fff',
+        padding: 20,
+        borderRadius: 10,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 5,
+        elevation: 3,
     },
     colorBoxRed:{
         height: 50,

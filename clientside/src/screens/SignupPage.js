@@ -10,51 +10,101 @@ const SignupPage = props => {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [isEmailInvalid, setisEmailInvalid] = useState(false);
+    const [isUsernameInvalid, setisUsernameInvalid] = useState(false);
+    const [isPasswordInvalid, setisPasswordInvalid] = useState(false);
+    const [isConfirmPasswordInvalid, setisConfirmPasswordInvalid] = useState(false);
+
+    const validateEmail = email => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+    };
+    const validatePassword = password => {
+        const passwordRegex = /^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*\W)(?!.* ).{8,16}$/;
+        return passwordRegex.test(password);
+    };
+    const validateUsername = username => {
+        const usernameRegex = /^[0-9A-Za-z]{6,16}$/;
+        return usernameRegex.test(username);
+    };
+    const matchPasswords = (password, confirmPassword) => {
+        return password === confirmPassword
+    };
 
     const onSubmitHandler = async () => {
-        console.log('Making request...');
-        console.log('email:', email);
         try {
+            //reset the errors, set loading to true so user cant click or enter anything until we get response from the backend server
             setLoading(true);
             setError('');
+            setisEmailInvalid(false)
+            setisUsernameInvalid(false)
+            setisPasswordInvalid(false)
+            setisConfirmPasswordInvalid(false)
 
+            //validate the inputs
+            if (!validateUsername(username)) {
+                setError("Please enter a 6-16 long username, characters can only consist of letters and numbers");
+                setLoading("false");
+                setisUsernameInvalid(true);
+                return;
+            }
+            if (!validateEmail(email)) {
+                setError("Please enter a proper email address");
+                setLoading("false");
+                setisEmailInvalid(true);
+                return;
+            }
+            if (!validatePassword(password)) {
+                setError("Password must be between 8-16 characters, consisting of special character, capital & small letters, and numbers");
+                setLoading("false");
+                setisPasswordInvalid(true)
+                return;
+            }
+            if (!matchPasswords(password, confirmPassword)) {
+                setError("Your passwords don't match");
+                setLoading("false");
+                setisConfirmPasswordInvalid(true)
+                return;
+            }
+
+            //send the inputs to the backend to validate them, and save the user if everything works properly.
             const response = await axios.post('http://10.0.0.13:3001/signup', {
                 email: email,
                 username: username,
                 password: password,
                 confirmPassword: confirmPassword,
             });
-
+            //recieves a 2XX.. response, user created successfully 
             console.log('Success:', response.data);
             props.navigation.navigate('LoginPage');
+
+            //enters catch block if backend returns 4XX/5XX...
         } catch (err) {
-            console.error('Error:', err.response?.data?.message || err.message);
-            setError(err.response?.data?.message || 'Something went wrong!');
+                //extract and log the specific error message from the server
+            if (err.response.data.message) {
+                console.error('Server Error:', err.response.data.message);
+                setError(err.response.data.message);
+                //for any other unidentified errors
+            } else {
+                console.error('Unexpected Error:', err);
+                setError('An unexpected error occurred. Please try again later.');
+            }
         } finally {
+            //return loading to false enabling the user to write/click again
             setLoading(false);
         }
     };
 
 
     return (
-
-        
         <View style={styles.container} onPress={() => alert('Signup')}>
-
-
-            <View style={styles.wrapper}>
-                {loading ? (
-                    <Text style={styles.formHeading}> Creating resource </Text>
-                ) : (
-                    <Text style={styles.formHeading}>Create new user</Text>
-                )}
-            </View>
 
             <View style={styles.frameContainer}>
 
+                {/* React native docs: You can use an array of styles. The last style in the array has the highest priority, so you can use this to dynamically change styles at runtime. */}
                 <Text style={styles.header}>Sign up</Text>
                 <TextInput
-                    style={styles.TextInput}
+                    style={isUsernameInvalid ? styles.colorBoxRed : styles.textInput}
                     autoCapitalize='none'
                     autoCorrect={false}
                     label="Username"
@@ -65,7 +115,7 @@ const SignupPage = props => {
                     onChangeText={newValue => setUsername(newValue)}
                 />
                 <TextInput
-                    style={styles.TextInput}
+                    style={isEmailInvalid ? styles.colorBoxRed : styles.textInput}
                     autoCapitalize='none'
                     autoCorrect={false}
                     label="Email Address"
@@ -76,18 +126,19 @@ const SignupPage = props => {
                     onChangeText={newValue => setEmail(newValue)}
                 />
                 <TextInput
-                    style={styles.TextInput}
+                    style={isPasswordInvalid ? styles.colorBoxRed : styles.textInput}
                     autoCapitalize='none'
                     autoCorrect={false}
                     label="Password"
                     placeholderTextColor="#3b3d3d"
                     placeholder="Password"
                     editable={!loading}
-                    value= {password}
+                    value={password}
+                    secureTextEntry={true}
                     onChangeText={newValue => setPassword(newValue)}
                 />
                 <TextInput
-                    style={styles.TextInput}
+                    style={isConfirmPasswordInvalid ? styles.colorBoxRed : styles.textInput}
                     label="confirm your password"
                     autoCapitalize='none'
                     autoCorrect={false}
@@ -95,24 +146,28 @@ const SignupPage = props => {
                     placeholder="confirm your password"
                     editable={!loading}
                     value={confirmPassword}
+                    secureTextEntry={true}
                     onChangeText={newValue => setConfirmPassword(newValue)}
                 />
                 {/* <TextInput 
-                style={styles.TextInput} 
+                style={styles.textInput} 
                 label = "Phone Number"
                 placeholder="Phone Number"
             /> */}
-                <TouchableOpacity style={styles.SignupButton} onPress= {onSubmitHandler} disabled={loading} >
+
+                <TouchableOpacity style={styles.SignupButton} onPress={onSubmitHandler} disabled={loading} >
                     <Text style={styles.buttonText}>Sign Up for an account</Text>
                 </TouchableOpacity>
-                
-                <View style={styles.rowContainer}>
-                    {/* <Text style={styles.errorText}>{error}</Text> */}
-                    <Text style={styles.haveAnAccount}>Already have an account? </Text>
+
+                <View style={styles.bottomButtons}>
                     <TouchableOpacity onPress={() => props.navigation.navigate('LoginPage')} disabled={loading}>
-                        <Text style={styles.loginText}>Log in</Text>
+                        <Text style={styles.loginNavigate}>Already have an account</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => props.navigation.navigate('LoginPage')} disabled={loading}>
+                        <Text style={styles.loginNavigate}>Forgot your password?</Text>
                     </TouchableOpacity>
                 </View>
+                <Text style={styles.errorText}>{error}</Text>
             </View>
         </View>
     );
