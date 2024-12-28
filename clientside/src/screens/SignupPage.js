@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Text, View, StyleSheet, TouchableOpacity, TextInput, Button } from 'react-native';
 import { styles } from '../styles/SignupPageStyle';
 import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SignupPage = props => {
     const [email, setEmail] = useState('');
@@ -14,6 +15,27 @@ const SignupPage = props => {
     const [isUsernameInvalid, setisUsernameInvalid] = useState(false);
     const [isPasswordInvalid, setisPasswordInvalid] = useState(false);
     const [isConfirmPasswordInvalid, setisConfirmPasswordInvalid] = useState(false);
+    const [isCheckingToken, setIsCheckingToken] = useState(true);
+
+    //checking if a token exists
+    useEffect(() => {
+        const checkToken = async () => {
+            try {
+                const token = await AsyncStorage.getItem('token');
+                console.log('Token:', token); // Logs null if no token is found
+                if (token) {
+                    console.log('User already logged in, redirecting...');
+                    navigation.navigate('Home'); // Navigate to Home if token exists
+                } else {
+                    setIsCheckingToken(false); // Allow the login page to render if no token exists
+                }
+            } catch (err) {
+                console.error('Error checking token:', err);
+                setIsCheckingToken(false); // Handle errors and allow login page to render
+            }
+        };
+        checkToken();
+    }, []);
 
     const validateEmail = email => {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -46,24 +68,28 @@ const SignupPage = props => {
                 setError("Please enter a 6-16 long username, characters can only consist of letters and numbers");
                 setLoading("false");
                 setisUsernameInvalid(true);
+                setLoading(false);
                 return;
             }
             if (!validateEmail(email)) {
                 setError("Please enter a proper email address");
                 setLoading("false");
                 setisEmailInvalid(true);
+                setLoading(false);
                 return;
             }
             if (!validatePassword(password)) {
                 setError("Password must be between 8-16 characters, consisting of special character, capital & small letters, and numbers");
                 setLoading("false");
-                setisPasswordInvalid(true)
+                setisPasswordInvalid(true);
+                setLoading(false);
                 return;
             }
             if (!matchPasswords(password, confirmPassword)) {
                 setError("Your passwords don't match");
                 setLoading("false");
-                setisConfirmPasswordInvalid(true)
+                setisConfirmPasswordInvalid(true);
+                setLoading(false);
                 return;
             }
 
@@ -80,7 +106,7 @@ const SignupPage = props => {
 
             //enters catch block if backend returns 4XX/5XX...
         } catch (err) {
-                //extract and log the specific error message from the server
+            //extract and log the specific error message from the server
             if (err.response.data.message) {
                 console.error('Server Error:', err.response.data.message);
                 setError(err.response.data.message);
@@ -95,6 +121,14 @@ const SignupPage = props => {
         }
     };
 
+    if (isCheckingToken) {
+        return (
+            <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+                {/* can be replaced with spinping loading logo: */}
+                <Text>Loading...</Text>
+            </View>
+        );
+    }
 
     return (
         <View style={styles.container} onPress={() => alert('Signup')}>

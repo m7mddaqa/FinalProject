@@ -51,6 +51,25 @@ export const styles = StyleSheet.create({
         fontWeight: 'bold',
         color: '#007AFF',
     },
+    errorText: {
+        fontSize: 14,
+        color: 'red',
+        marginBottom: 15,
+        textAlign: 'center',
+    },
+    bottomButtons: {
+        flexDirection: 'row',
+        gap: 15,
+        marginHorizontal: -5
+    },
+    signupNavigate: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#007AFF',
+        flexDirection: 'row',
+        marginBottom: 10,
+        marginTop: 2
+    },
     frameContainer: {
         width: '100%',
         maxWidth: 400,

@@ -66,7 +66,8 @@ export const styles = StyleSheet.create({
     },
     bottomButtons: {
         flexDirection: 'row',
-        gap: 25
+        gap: 15,
+        marginHorizontal: -5
     },
     colorBoxRed:{
         height: 50,

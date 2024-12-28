@@ -42,3 +42,4 @@ clientside/*.tsbuildinfo
 .env
 
 node_modules/
+server/Routers/testingRoute.js

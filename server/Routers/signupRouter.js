@@ -4,6 +4,8 @@ const router = Router();
 import dotenv from 'dotenv';
 dotenv.config();
 import bcrypt from "bcrypt";
+import jwt from 'jsonwebtoken';
+process.env.TOKEN_SECRET;
 
 //validation functions:
 const validateEmail = (email) => {
