@@ -11,6 +11,9 @@ const Home = props => {
             <View style={{ margin: 10 }}>
                 <Button title="Don't have an account? Signup now" color='#067ef5' onPress={() => props.navigation.navigate('SignupPage')} />
             </View>
+            <View style={{ margin: 10 }}>
+                <Button title="Check the map now" color='#067ef5' onPress={() => props.navigation.navigate('MapPage')} />
+            </View>
         </View>
     );
 };

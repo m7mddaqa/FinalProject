@@ -3,26 +3,27 @@ import React from 'react';
 import { View, Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+
 import Home from './src/screens/Home';
 import LoginPage from './src/screens/LoginPage';
 import SignupPage from './src/screens/SignupPage';
+import MapPage from './src/screens/MapPage';
 
 const Stack = createNativeStackNavigator();
-
 function MyStack() {
   return (
     <Stack.Navigator>
-      
-      <Stack.Screen 
-        name="Home" 
-        component={Home} 
-        options={{ 
+
+      <Stack.Screen
+        name="Home"
+        component={Home}
+        options={{
           title: 'Welcome to SafeSpot',
           headerTitleStyle: { fontWeight: 'bold' },
         }}
       />
-      
-      <Stack.Screen 
+
+      <Stack.Screen
         name="LoginPage"
         component={LoginPage}
         options={{
@@ -33,7 +34,7 @@ function MyStack() {
         }}
       />
 
-      <Stack.Screen 
+      <Stack.Screen
         name="SignupPage"
         component={SignupPage}
         options={{
@@ -44,6 +45,16 @@ function MyStack() {
         }}
       />
 
+      <Stack.Screen
+        name="MapPage"
+        component={MapPage}
+        options={{
+          title: 'Map',
+          headerStyle: { backgroundColor: '#067ef5' },
+          headerTintColor: '#fff',
+          headerTitleStyle: { fontWeight: 'bold' },
+        }}
+      />
     </Stack.Navigator>
   );
 }
