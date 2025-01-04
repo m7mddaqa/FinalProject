@@ -25,7 +25,7 @@ const SignupPage = props => {
                 console.log('Token:', token); // Logs null if no token is found
                 if (token) {
                     console.log('User already logged in, redirecting...');
-                    navigation.navigate('Home'); // Navigate to Home if token exists
+                    props.navigation.navigate('Home'); // Navigate to Home if token exists
                 } else {
                     setIsCheckingToken(false); // Allow the login page to render if no token exists
                 }
@@ -94,7 +94,7 @@ const SignupPage = props => {
             }
 
             //send the inputs to the backend to validate them, and save the user if everything works properly.
-            const response = await axios.post('http://10.0.0.13:3001/signup', {
+            const response = await axios.post('http://10.0.0.16:3001/signup', {
                 email: email,
                 username: username,
                 password: password,

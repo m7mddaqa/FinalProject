@@ -14,6 +14,9 @@ const Home = props => {
             <View style={{ margin: 10 }}>
                 <Button title="Check the map now" color='#067ef5' onPress={() => props.navigation.navigate('MapPage')} />
             </View>
+            <View style={{ margin: 10 }}>
+                <Button title="Check your profile" color='#067ef5' onPress={() => props.navigation.navigate('ProfilePage')} />
+            </View>
         </View>
     );
 };

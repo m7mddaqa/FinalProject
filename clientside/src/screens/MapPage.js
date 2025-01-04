@@ -1,175 +1,312 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
-import MapViewDirections from 'react-native-maps-directions';
-import * as Location from 'expo-location';
-import { styles } from '../styles/MapPageStyle.js';
+import React, { useState, useEffect } from 'react'; //importing React and necessary hooks
+import { View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions } from 'react-native'; //importing React Native components
+import MapView, { Marker } from 'react-native-maps'; //importing MapView and Marker for maps
+import MapViewDirections from 'react-native-maps-directions'; //importing MapViewDirections for route calculation
+import * as Location from 'expo-location'; //importing Expo location services
+import AsyncStorage from '@react-native-async-storage/async-storage'; //importing AsyncStorage for persistent data
+import { useNavigation } from '@react-navigation/native'; //importing navigation hook
+import { styles } from '../styles/MapPageStyle.js'; //importing custom styles
+import MaterialIcons from '@expo/vector-icons/MaterialIcons'; //recenter icon
+import Entypo from '@expo/vector-icons/Entypo'; //menu icon
+import Ionicons from '@expo/vector-icons/Ionicons'; //menu options icons
+import Fontisto from '@expo/vector-icons/Fontisto'; //close button icon
+import ProfilePage from './ProfilePage'; //importing ProfilePage component
 
-const googleMapsApiKey = "AIzaSyCCT2D-T-WTgVT8_PRyNyZgf2Fe5abpHnA";
+const googleMapsApiKey = "APIKEY"; //Google Maps API Key
 
-const NavigationPage = () => {
-    const [origin, setOrigin] = useState(null); //user's realtime location
-    const [destination, setDestination] = useState({
+const NavigationPage = (props) => {
+    const [origin, setOrigin] = useState(null); //state for user's current location
+    const [destination, setDestination] = useState({ //destination coordinates
         latitude: 31.312653,
         longitude: 35.263273,
     });
-    const [instructions, setInstructions] = useState([]);
-    const [currentStep, setCurrentStep] = useState({}); //current step with detailed information
-    const [showFullSteps, setShowFullSteps] = useState(false); //toggle for full steps view
+    const [instructions, setInstructions] = useState([]); //state for navigation instructions
+    const [currentStep, setCurrentStep] = useState(null); //state for the current step in directions
+    const [isLoggedIn, setIsLoggedIn] = useState(false); //state to check user login status
+    const [mapRegion, setMapRegion] = useState({
+        latitude: 31.312653,
+        longitude: 35.263273,
+        latitudeDelta: 0.0922,
+        longitudeDelta: 0.0421,
+    });
 
-    //helper function to calculate distance between two coordinates
-    const calculateDistance = (coord1, coord2) => {
-        const R = 6371e3; //earth radius in meters
-        //convert lats from degrees to radians (sin and cos use radians in JS not degrees), formula: Radians = Degrees*Pi/180
-        const lat1 = (coord1.latitude * Math.PI) / 180;
-        const lat2 = (coord2.latitude * Math.PI) / 180;
-        const deltaLat = lat2 - lat1; //the difference between the 2 lats in radians
-        const deltaLng = ((coord2.longitude - coord1.longitude) * Math.PI) / 180; //the difference between the 2 longs in radians
-        //Haversine formula:
+
+    const [isMenuVisible, setIsMenuVisible] = useState(false);
+    const slideAnim = useState(new Animated.Value(Dimensions.get('window').height + 50))[0];
+
+    const calculateDistance = (coord1, coord2) => { //function to calculate distance between two coordinates
+        const R = 6371e3; //radius of the Earth in meters
+        const lat1 = (coord1.latitude * Math.PI) / 180; //latitude of first coordinate in radians
+        const lat2 = (coord2.latitude * Math.PI) / 180; //latitude of second coordinate in radians
+        const deltaLat = lat2 - lat1; //difference in latitude
+        const deltaLng = ((coord2.longitude - coord1.longitude) * Math.PI) / 180; //difference in longitude
         const a =
             Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
-            Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLng / 2) * Math.sin(deltaLng / 2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLng / 2) * Math.sin(deltaLng / 2); //haversine formula
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)); //angular distance in radians
 
         return R * c; //distance in meters
     };
 
-    //real-time location tracking
-    useEffect(() => {
-        const startLocationUpdates = async () => {
-            let { status } = await Location.requestForegroundPermissionsAsync();
-            if (status !== 'granted') {
-                console.log('Permission to access location was denied'); //todo: test what happens if denied access
-                return;
+
+
+
+    const handleMenu = () => {
+        if (isMenuVisible) {
+            Animated.timing(slideAnim, {
+                toValue: Dimensions.get('screen').height + 50, // Push it further off-screen
+                duration: 300,
+                useNativeDriver: true,
+            }).start(() => setIsMenuVisible(false));
+        } else {
+            setIsMenuVisible(true);
+            Animated.timing(slideAnim, {
+                toValue: Dimensions.get('screen').height * 0.1,
+                duration: 300,
+                useNativeDriver: true,
+            }).start();
+        }
+    };
+
+
+    const handleRecenter = async () => {
+        let { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+            console.error('Permission to access location was denied');
+            return;
+        }
+
+
+
+
+
+        let location = await Location.getCurrentPositionAsync({});
+        setOrigin({
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+        });
+        setMapRegion({
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+            latitudeDelta: 0.0922,
+            longitudeDelta: 0.0421,
+        });
+    };
+
+    useEffect(() => { //check if user is logged in
+        const checkToken = async () => {
+            const token = await AsyncStorage.getItem('token'); //retrieve token from storage
+            setIsLoggedIn(!!token); //set login status
+            if (!token) {
+                props.navigation.replace('Home'); //navigate to Home if not logged in
+            }
+        };
+
+        checkToken(); //call the function
+    }, []); //empty dependency array means it runs once
+
+    useEffect(() => { //update user's location in real-time
+        let watcher = null; //variable to hold location watcher
+
+        const startLocationUpdates = async () => { //start location updates
+            const { status } = await Location.requestForegroundPermissionsAsync(); //request location permissions
+            if (status !== 'granted') { //check if permission is granted
+                console.log('Permission to access location was denied'); //log error
+                return; //exit function
             }
 
-            //timeinterval is only supported on android as of now
-            //first argument: options, second argument: locationcallback which consists of a locationObject which consists of coords
-            Location.watchPositionAsync(
+            watcher = await Location.watchPositionAsync( //start watching position
                 {
-                    accuracy: Location.Accuracy.High,
-                    timeInterval: 5000, // Update every 5 seconds
-                    distanceInterval: 10, // Update every 10 meters
+                    accuracy: Location.Accuracy.High, //set accuracy to high
+                    timeInterval: 5000, //update every 5 seconds
+                    distanceInterval: 10, //or when moved 10 meters
                 },
-                (location) => {
-                    const currentLocation = {
+                (location) => { //callback with location
+                    const currentLocation = { //extract current location
                         latitude: location.coords.latitude,
                         longitude: location.coords.longitude,
                     };
 
-                    //check if user is near the destination
-                    const distanceToDestination = calculateDistance(currentLocation, destination);
-                    if (distanceToDestination <= 50) {
-                        console.log('User has reached the destination. Navigation complete.');
-                        return; //stop recalculations
+                    const distanceToDestination = calculateDistance(currentLocation, destination); //calculate distance to destination
+                    if (distanceToDestination <= 50) { //if close to destination
+                        console.log('User has reached the destination. Stopping updates.'); //log message
+                        watcher && watcher.remove(); //stop updates
+                        return; //exit function
                     }
 
-                    //check if user has deviated from the route
-                    if (currentStep?.instruction) {
-                        const stepLocation = currentStep.location; //compare against the current step
-                        const distanceToStep = calculateDistance(currentLocation, stepLocation);
-
-                        if (distanceToStep > 50) {
-                            console.log('User has deviated from the route. Recalculating...');
-                            setOrigin(currentLocation); //update origin to current location and recalculate route
-                        }
-                    }
+                    setOrigin(currentLocation); //update origin state
                 }
             );
         };
-        startLocationUpdates();
-    }, [origin, currentStep]);
 
-    //fetch updated directions
-    useEffect(() => {
+        if (isLoggedIn) startLocationUpdates(); //start updates if logged in
+
+        return () => { //cleanup function
+            watcher && watcher.remove(); //stop watcher
+        };
+    }, [isLoggedIn]); //run when login status changes
+
+    useEffect(() => { //fetch directions when origin changes
         const fetchDirections = async () => {
-            if (!origin) return;
+            if (!origin) return; //if origin is null, exit
 
-            const originStr = `${origin.latitude},${origin.longitude}`;
-            const destinationStr = `${destination.latitude},${destination.longitude}`;
-            const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${originStr}&destination=${destinationStr}&key=${googleMapsApiKey}`;
+            const originStr = `${origin.latitude},${origin.longitude}`; //format origin string
+            const destinationStr = `${destination.latitude},${destination.longitude}`; //format destination string
+            const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${originStr}&destination=${destinationStr}&key=${googleMapsApiKey}`; //build API URL
 
             try {
-                const response = await fetch(url);
-                const data = await response.json();
+                const response = await fetch(url); //fetch directions
+                const data = await response.json(); //parse response
 
-                if (data.routes.length) {
-                    const steps = data.routes[0].legs[0].steps.map((step) => ({
-                        instruction: step.html_instructions.replace(/<[^>]*>?/gm, ''), //Strip HTML tags
-                        distance: step.distance.text, //e.g., "500 m"
-                        duration: step.duration.text, //e.g., "1 min"
-                        location: step.end_location, //End location of the step
+                if (data.routes && data.routes.length > 0) { //check if routes exist
+                    const steps = data.routes[0].legs[0].steps.map((step) => ({ //map steps
+                        instruction: step.html_instructions.replace(/<[^>]*>?/gm, ''), //remove HTML tags
+                        distance: step.distance.text, //step distance
+                        duration: step.duration.text, //step duration
+                        location: { //step end location
+                            latitude: step.end_location.lat,
+                            longitude: step.end_location.lng,
+                        },
                     }));
-                    setInstructions(steps);
-
-                    //update the current step
-                    if (steps.length > 0) {
-                        setCurrentStep(steps[0]);
-                    }
+                    setInstructions(steps); //update instructions
+                    setCurrentStep(steps[0]); //set first step
+                } else {
+                    console.error('No routes found or invalid response:', data); //log error
                 }
             } catch (error) {
-                console.error('Error fetching directions:', error);
+                console.error('Error fetching directions:', error); //log fetch error
             }
         };
 
-        fetchDirections();
+        if (isLoggedIn) fetchDirections(); //fetch directions if logged in
+    }, [origin, isLoggedIn]); //run when origin or login status changes
+
+    useEffect(() => {
+        if (origin) {
+            setMapRegion({
+                latitude: origin.latitude,
+                longitude: origin.longitude,
+                latitudeDelta: 0.0922,
+                longitudeDelta: 0.0421,
+            });
+        }
     }, [origin]);
 
     return (
         <View style={styles.container}>
-            {origin && (
-                <MapView
-                    style={styles.map}
-                    region={{
-                        latitude: origin.latitude,
-                        longitude: origin.longitude,
-                        latitudeDelta: 0.05,
-                        longitudeDelta: 0.05,
-                    }}
-                    showsUserLocation={true}
-                    followsUserLocation={true}
-                >
-                    <Marker coordinate={destination} title="Tel Aviv" />
-                    <MapViewDirections
-                        origin={origin}
-                        destination={destination}
-                        apikey={googleMapsApiKey}
-                        strokeWidth={4}
-                        strokeColor="blue"
-                        onReady={(result) => {
-                            console.log(`Distance: ${result.distance} km`);
-                            console.log(`Duration: ${result.duration} min`);
-                        }}
-                    />
-                </MapView>
-            )}
-            <View style={styles.instructions}>
-                <Text style={styles.heading}>Current Step:</Text>
-                {currentStep ? (
-                    <Text style={styles.currentStep}>
-                        {currentStep.instruction} for {currentStep.distance} ({currentStep.duration})
-                    </Text>
-                ) : (
-                    <Text style={styles.currentStep}>Fetching current step...</Text>
-                )}
-                <TouchableOpacity onPress={() => setShowFullSteps(!showFullSteps)}>
-                    <Text style={styles.toggleText}>
-                        {showFullSteps ? 'Hide Full Steps' : 'Show Full Steps'}
-                    </Text>
-                </TouchableOpacity>
-                {showFullSteps && (
-                    <View style={styles.fullStepsContainer}>
-                        {instructions.map((step, index) => (
-                            <Text key={index} style={styles.fullStep}>
-                                {index + 1}. {step.instruction} for {step.distance} ({step.duration})
+            {isLoggedIn && ( //show content if logged in
+                <>
+                    {origin && ( //show map if origin is available
+                        <MapView
+                            style={styles.map} //apply map styles
+                            region={mapRegion}
+                            showsUserLocation={true} //show user's location
+                            showsMyLocationButton={false} //show location button
+                        >
+                            {origin && <Marker coordinate={origin} />}
+                            {/*marker at destination*/}
+                            <Marker coordinate={destination} title="Destination" />
+                            <MapViewDirections
+                                origin={origin} //starting point
+                                destination={destination} //ending point
+                                apikey={googleMapsApiKey} //Google Maps API Key
+                                strokeWidth={4} //line width
+                                strokeColor="blue" //line color
+                                onReady={(result) => { //callback when ready
+                                    console.log(`Distance: ${result.distance} km`); //log distance
+                                    console.log(`Duration: ${result.duration} min`); //log duration
+                                }}
+                                onError={(errorMessage) => { //callback on error
+                                    console.error('Directions Error:', errorMessage); //log error
+                                }}
+                            />
+                        </MapView>
+                    )}
+
+                    {/* Menu Button */}
+                    {!isMenuVisible && (
+                        <TouchableOpacity style={styles.menu} onPress={handleMenu}>
+                            <Entypo name="menu" size={24} color="black" />
+                        </TouchableOpacity>
+                    )}
+
+                    {/* Sliding Menu */}
+                    <Animated.View
+                        style={[
+                            styles.slidingMenu,
+                            { transform: [{ translateY: slideAnim }] },
+                        ]}
+                    >
+
+
+                        {/* Close Button */}
+                        <TouchableOpacity
+                            style={styles.closeButton}
+                            onPress={handleMenu}
+                        >
+                            <Fontisto name="close" size={24} color="white" />
+                        </TouchableOpacity>
+
+                        {/* Profile Section */}
+                        <View style={styles.profileSection}>
+                            <Ionicons name="person-circle-outline" size={50} color="white" />
+                            <View style={styles.profileText}>
+                                <Text style={styles.profileName}>Username</Text>
+                                <TouchableOpacity onPress={() => props.navigation.navigate('ProfilePage')}>
+                                    <Text style={styles.viewProfileText}>View profile</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+
+                        {/* Menu Items */}
+                        <TouchableOpacity style={styles.menuItem}>
+                            <Ionicons name="car-outline" size={24} color="white" />
+                            <Text style={styles.menuItemText}>Plan a drive</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity style={styles.menuItem}>
+                            <Ionicons name="chatbubble-ellipses-outline" size={24} color="white" />
+                            <Text style={styles.menuItemText}>Inbox</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity style={styles.menuItem}>
+                            <Ionicons name="settings-outline" size={24} color="white" />
+                            <Text style={styles.menuItemText}>Settings</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity style={styles.menuItem}>
+                            <Ionicons name="help-circle-outline" size={24} color="white" />
+                            <Text style={styles.menuItemText}>Help and feedback</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity style={styles.menuItem}>
+                            <Ionicons name="power-outline" size={24} color="white" />
+                            <Text style={styles.menuItemText}>Shut off</Text>
+                        </TouchableOpacity>
+                    </Animated.View>
+
+
+                    {!isMenuVisible && (
+                        <TouchableOpacity style={styles.recenterButton} onPress={handleRecenter}>
+                            <MaterialIcons name="gps-fixed" size={24} color="black" />
+                        </TouchableOpacity>
+                    )}
+
+                    {/* Current Step at the Bottom */}
+                    {currentStep && !isMenuVisible && ( //show current step if available
+                        <View style={styles.instructions}>
+                            {/*step heading*/}
+                            <Text style={styles.heading}>Current Step:</Text>
+                            <Text style={styles.currentStep}>
+                                {/*step details*/}
+                                {currentStep.instruction} for {currentStep.distance} ({currentStep.duration})
                             </Text>
-                        ))}
-                    </View>
-                )}
-            </View>
+                        </View>
+                    )}
+                </>
+            )}
         </View>
     );
 };
 
-
-export default NavigationPage;
+export default NavigationPage; //export component
