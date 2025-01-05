@@ -12,7 +12,7 @@ import Ionicons from '@expo/vector-icons/Ionicons'; //menu options icons
 import Fontisto from '@expo/vector-icons/Fontisto'; //close button icon
 import ProfilePage from './ProfilePage'; //importing ProfilePage component
 
-const googleMapsApiKey = "APIKEY"; //Google Maps API Key
+const googleMapsApiKey = ""; //Google Maps API Key
 
 const NavigationPage = (props) => {
     const [origin, setOrigin] = useState(null); //state for user's current location
