@@ -3,6 +3,7 @@ import { Text, View, StyleSheet, TouchableOpacity, TextInput, Button } from 'rea
 import { styles } from '../styles/SignupPageStyle';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {URL} from '@env';
 
 const SignupPage = props => {
     const [email, setEmail] = useState('');
@@ -18,20 +19,21 @@ const SignupPage = props => {
     const [isCheckingToken, setIsCheckingToken] = useState(true);
 
     //checking if a token exists
+    //page is rendered first (return part gets triggered and then the useEffect is triggered)
     useEffect(() => {
         const checkToken = async () => {
             try {
                 const token = await AsyncStorage.getItem('token');
-                console.log('Token:', token); // Logs null if no token is found
+                console.log('Token:', token); //logs null if no token is found
                 if (token) {
                     console.log('User already logged in, redirecting...');
-                    props.navigation.navigate('Home'); // Navigate to Home if token exists
+                    props.navigation.navigate('Home'); //navigate to Home if token exists
                 } else {
-                    setIsCheckingToken(false); // Allow the login page to render if no token exists
+                    setIsCheckingToken(false); //allow the login page to render if no token exists
                 }
             } catch (err) {
                 console.error('Error checking token:', err);
-                setIsCheckingToken(false); // Handle errors and allow login page to render
+                setIsCheckingToken(false); //handle errors and allow login page to render
             }
         };
         checkToken();
@@ -55,6 +57,7 @@ const SignupPage = props => {
 
     const onSubmitHandler = async () => {
         try {
+            console.log("submitting signup form...")
             //reset the errors, set loading to true so user cant click or enter anything until we get response from the backend server
             setLoading(true);
             setError('');
@@ -92,9 +95,9 @@ const SignupPage = props => {
                 setLoading(false);
                 return;
             }
-
+            console.log("all inputs are valid, sending to backend...")
             //send the inputs to the backend to validate them, and save the user if everything works properly.
-            const response = await axios.post('http://10.0.0.16:3001/signup', {
+            const response = await axios.post(`${URL}/signup`, {
                 email: email,
                 username: username,
                 password: password,
@@ -157,6 +160,7 @@ const SignupPage = props => {
                     placeholder="Email Address"
                     editable={!loading}
                     value={email}
+                    keyboardType='email-address'
                     onChangeText={newValue => setEmail(newValue)}
                 />
                 <TextInput
@@ -198,7 +202,7 @@ const SignupPage = props => {
                         <Text style={styles.loginNavigate}>Already have an account</Text>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => props.navigation.navigate('LoginPage')} disabled={loading}>
-                        <Text style={styles.loginNavigate}>Forgot your password?</Text>
+                        <Text style={styles.forgotPasswordNavigate}>Forgot your password?</Text>
                     </TouchableOpacity>
                 </View>
                 <Text style={styles.errorText}>{error}</Text>

@@ -55,8 +55,11 @@ export const styles = StyleSheet.create({
         fontWeight: 'bold',
         color: '#007AFF',
         flexDirection: 'row',
-        marginBottom: 10,
-        marginTop: 2
+    },
+    forgotPasswordNavigate: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#007AFF',
     },
     errorText: {
         fontSize: 14,
@@ -66,10 +69,12 @@ export const styles = StyleSheet.create({
     },
     bottomButtons: {
         flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
         gap: 15,
-        marginHorizontal: -5
     },
-    colorBoxRed:{
+
+    colorBoxRed: {
         height: 50,
         borderColor: 'red',
         borderWidth: 1,

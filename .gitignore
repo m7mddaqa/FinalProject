@@ -43,3 +43,6 @@ clientside/*.tsbuildinfo
 
 node_modules/
 server/Routers/testingRoute.js
+
+
+temp_telegramBot_folder

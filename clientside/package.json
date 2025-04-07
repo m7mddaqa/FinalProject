@@ -9,26 +9,31 @@
     "web": "expo start --web"
   },
   "dependencies": {
-    "@expo/vector-icons": "^14.0.4",
+    "@expo/vector-icons": "^14.0.2",
     "@mapbox/polyline": "^1.2.1",
-    "@react-native-async-storage/async-storage": "^2.1.0",
+    "@react-native-async-storage/async-storage": "1.23.1",
     "@react-navigation/drawer": "^7.1.1",
-    "@react-navigation/native": "^7.0.14",
-    "@react-navigation/native-stack": "^7.2.0",
+    "@react-navigation/native": "^7.1.4",
+    "@react-navigation/native-stack": "^7.3.8",
     "axios": "^1.7.9",
     "expo": "~52.0.23",
-    "expo-location": "^18.0.4",
+    "expo-location": "~18.0.10",
+    "expo-speech": "~13.0.1",
     "expo-status-bar": "~2.0.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-native": "0.76.5",
     "react-native-config": "^1.5.3",
+    "react-native-dotenv": "^3.4.11",
     "react-native-geolocation-service": "^5.3.1",
+    "react-native-get-random-values": "^1.11.0",
+    "react-native-google-places-autocomplete": "^2.5.7",
     "react-native-maps": "1.18.0",
     "react-native-maps-directions": "^1.9.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.20.0"
+    "@babel/core": "^7.20.0",
+    "expo-module-scripts": "^4.0.5"
   },
   "private": true
 }

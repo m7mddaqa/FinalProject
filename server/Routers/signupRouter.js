@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 import bcrypt from "bcrypt";
 import jwt from 'jsonwebtoken';
-process.env.TOKEN_SECRET;
+process.env._SECRET;
 
 //validation functions:
 const validateEmail = (email) => {
@@ -22,7 +22,7 @@ const validateUsername = username => {
 };
 
 router.post('/signup', async (req, res) => {
-    console.log("Hi");
+    console.log("signup hit");
     const { email, username, password, confirmPassword } = req.body;
 
     if (!email || !username || !password || !confirmPassword) {

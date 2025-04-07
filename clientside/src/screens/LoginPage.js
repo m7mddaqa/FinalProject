@@ -3,6 +3,8 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'reac
 import { styles } from '../styles/LoginPageStyle.js';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getToken } from '../services/getToken.js';
+import { URL } from '@env';
 
 const SignInPage = ({ navigation }) => {
     const [username, setUsername] = useState('');
@@ -13,26 +15,21 @@ const SignInPage = ({ navigation }) => {
     const [isPasswordValid, setIsPasswordValid] = useState(true);
     const [isCheckingToken, setIsCheckingToken] = useState(true);
 
-    //checking if a token exists
+    //checking if a token exists, as soon as the component is mounted (signin page loads up), it checks if theres a token in the storage, if there is then it redirects to Home
+    //if there is no token, it allows the login page to render
+    //page is rendered first (return part gets triggered and then the useEffect is triggered)
     useEffect(() => {
         const checkToken = async () => {
-            try {
-                const token = await AsyncStorage.getItem('token');
-                console.log('Token:', token); // Logs null if no token is found
-                if (token) {
-                    console.log('User already logged in, redirecting...');
-                    navigation.navigate('Home'); // Navigate to Home if token exists
-                } else {
-                    setIsCheckingToken(false); // Allow the login page to render if no token exists
-                }
-            } catch (err) {
-                console.error('Error checking token:', err);
-                setIsCheckingToken(false); // Handle errors and allow login page to render
+            const token = await getToken();
+            if (token) {
+                navigation.navigate('Home');
+            } else {
+                setIsCheckingToken(false);
             }
         };
         checkToken();
-    }, []); // Runs only once when the component is mounted
-     //if the array is empty it will only render once, 
+    }, []); //runs only once when the component is mounted
+    //if the array is empty it will only render once, 
     //if the array has [dependency1, dependency2] it will initially run when the component is mounted then every time one of the components changes
     //if theres no array, it will run after every render of the component
 
@@ -54,8 +51,7 @@ const SignInPage = ({ navigation }) => {
                 setIsPasswordValid(false);
                 return;
             }
-            console.log("hi")
-            const response = await axios.post('http://10.0.0.16:3001/login', {
+            const response = await axios.post(`${URL}/login`, {
                 username: username,
                 password: password
             });
@@ -67,7 +63,6 @@ const SignInPage = ({ navigation }) => {
         }
         catch (err) {
             if (err.response.data.message) {
-                console.error('Server Error:', err.response.data.message);
                 setError(err.response.data.message);
                 //for any other unidentified errors
             } else {
@@ -88,47 +83,47 @@ const SignInPage = ({ navigation }) => {
             </View>
         );
     }
-        return (
-            <View style={styles.container}>
-                <View style={styles.frameContainer}>
+    return (
+        <View style={styles.container}>
+            <View style={styles.frameContainer}>
 
-                    <Text style={styles.header}>Sign In</Text>
+                <Text style={styles.header}>Sign In</Text>
 
-                    <TextInput
-                        style={!isUsernameValid ? styles.colorBoxRed : styles.textInput}
-                        placeholder="Username"
-                        placeholderTextColor="#888"
-                        keyboardType="username"
-                        autoCapitalize="none"
-                        value={username}
-                        onChangeText={setUsername}
-                    />
+                <TextInput
+                    style={!isUsernameValid ? styles.colorBoxRed : styles.textInput}
+                    placeholder="Username"
+                    placeholderTextColor="#888"
+                    autoCapitalize="none"
+                    value={username}
+                    onChangeText={setUsername}
+                />
 
-                    <TextInput
-                        style={!isPasswordValid ? styles.colorBoxRed : styles.textInput}
-                        placeholder="Password"
-                        placeholderTextColor="#888"
-                        secureTextEntry
-                        value={password}
-                        onChangeText={setPassword}
-                    />
+                <TextInput
+                    style={!isPasswordValid ? styles.colorBoxRed : styles.textInput}
+                    placeholder="Password"
+                    placeholderTextColor="#888"
+                    secureTextEntry
+                    value={password}
+                    autoCapitalize='none'
+                    onChangeText={setPassword}
+                />
 
-                    <TouchableOpacity style={styles.signInButton} onPress={handleSignIn}>
-                        <Text style={styles.buttonText}>Sign In</Text>
+                <TouchableOpacity style={styles.signInButton} onPress={handleSignIn}>
+                    <Text style={styles.buttonText}>Sign In</Text>
+                </TouchableOpacity>
+
+                <View style={styles.bottomButtons}>
+                    <TouchableOpacity onPress={() => navigation.navigate('SignupPage')} disabled={Loading}>
+                        <Text style={styles.signupNavigate}>Don't have an account?</Text>
                     </TouchableOpacity>
-
-                    <View style={styles.bottomButtons}>
-                        <TouchableOpacity onPress={() => navigation.navigate('SignupPage')} disabled={Loading}>
-                            <Text style={styles.signupNavigate}>Don't have an account?</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => navigation.navigate('SignupPage')} disabled={Loading}>
-                            <Text style={styles.signupNavigate}>Forgot your password?</Text>
-                        </TouchableOpacity>
-                    </View>
-                    <Text style={styles.errorText}>{error}</Text>
+                    <TouchableOpacity onPress={() => navigation.navigate('SignupPage')} disabled={Loading}>
+                        <Text style={styles.signupNavigate}>Forgot your password?</Text>
+                    </TouchableOpacity>
                 </View>
+                <Text style={styles.errorText}>{error}</Text>
             </View>
-        );
+        </View>
+    );
 };
 
 

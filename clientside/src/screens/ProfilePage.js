@@ -1,12 +1,27 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { isLoggedIn } from '../services/getToken';
 
 const ProfilePage = ({ navigation }) => {
-    const [isInvisible, setIsInvisible] = React.useState(false);
+    const [isLoading, setIsLoading] = React.useState(true);
+    const [error, setError] = React.useState('');
 
-    const toggleSwitch = () => setIsInvisible((previousState) => !previousState);
+    //page is rendered first (return part gets triggered and then the useEffect is triggered)
+    useEffect(()=> {
+        const checkLoginStatus = async () =>{
+            const loggedIn = await isLoggedIn();
+            if (!loggedIn) {
+                navigation.navigate('LoginPage');
+            }
+            else{
+                console.log('User is logged in, checking profile...');
+                setIsLoading(false);
+            }
+        };
+        checkLoginStatus();
+    }, []);
 
     const handleSignOut = async () => {
         try {
@@ -20,7 +35,13 @@ const ProfilePage = ({ navigation }) => {
         }
     };
     
-
+    if(isLoading){
+        return(
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                <Text>Loading...</Text>
+            </View>
+        )
+    }
     return (
         <View style={styles.container}>
             {/* Profile Header */}
