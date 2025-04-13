@@ -40,6 +40,7 @@ clientside/*.tsbuildinfo
 
 # Server side (Node js)
 .env
+server/uploads/
 
 node_modules/
 server/Routers/testingRoute.js

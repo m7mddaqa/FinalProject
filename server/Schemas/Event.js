@@ -11,6 +11,11 @@ const EventSchema = new mongoose.Schema({
         ref: 'User',
         required: true
     },
+    verified: {
+        type: String,
+        enum: ['pending', 'yes', 'no'],
+        default: 'pending'
+    },
     createdAt: {
         type: Date,
         default: Date.now,

@@ -18,6 +18,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import polyline from '@mapbox/polyline';
 import axios from 'axios';
 import { URL } from '@env';
+import LogoutButton from './LogoutButton';
 
 import { cancelRide, getManeuverIcon, handleRecenter, getManeuverText, handleMenuToggle, calculateDistanceToRoute } from '../services/driveHelpers';
 
@@ -86,7 +87,6 @@ const NavigationPage = () => {
         try {
             const token = await AsyncStorage.getItem('token');
             if (!token) {
-                console.error('No token found');
                 return;
             }
 
@@ -139,7 +139,6 @@ const NavigationPage = () => {
         try {
             const token = await AsyncStorage.getItem('token');
             if (!token) {
-                console.error('No token found');
                 return [];
             }
 
@@ -362,6 +361,7 @@ const NavigationPage = () => {
     }
     return (
         <View style={styles.container}>
+            <LogoutButton />
             {/* Google Search Input */}
             {!isMenuVisible && (
                 <View style={StyleSheet.absoluteFill}>
