@@ -10,6 +10,7 @@ import requireAuth from './middlewares/requireAuth.js';
 import signupRouter from './Routers/signupRouter.js';
 import loginRouter from './Routers/loginRouter.js';
 import testingRoute from './Routers/testingRoute.js';
+import eventsRoute from './Routers/events.js';
 
 const app = express();
 app.use(bodyParser.json());
@@ -32,6 +33,7 @@ app.get('/', (req, res) => {
 app.use(signupRouter);
 app.use(loginRouter);
 app.use(testingRoute);
+app.use('/api/events', eventsRoute);
 
 app.get('/login', (req,res) => {
     res.send("Login page")

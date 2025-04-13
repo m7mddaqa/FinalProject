@@ -1,4 +1,5 @@
-import { StyleSheet } from 'react-native';
+import { StyleSheet, Dimensions } from 'react-native';
+const screenHeight = Dimensions.get('window').height;
 
 export const styles = StyleSheet.create({
     container: {
@@ -58,19 +59,14 @@ export const styles = StyleSheet.create({
     },
     slidingMenu: {
         position: 'absolute',
-        left: 0,
-        right: 0,
-        bottom: 0,
-        height: '100%',
-        backgroundColor: '#fff',
+        top: screenHeight * 0.1,
+        height: screenHeight * 0.9,
+        width: '100%',
+        backgroundColor: '#333',
         borderTopLeftRadius: 20,
         borderTopRightRadius: 20,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: -2 },
-        shadowOpacity: 0.2,
-        shadowRadius: 4,
-        elevation: 5,
-        padding: 20,
+        padding: screenHeight * 0.02,
+        zIndex: 10,
     },
     closeButton: {
         position: 'absolute',
@@ -86,8 +82,6 @@ export const styles = StyleSheet.create({
         color: '#555',
         textAlign: 'center',
     },
-
-
     slidingMenu: {
         position: 'absolute',
         left: 0,
@@ -124,29 +118,162 @@ export const styles = StyleSheet.create({
         color: 'white',
         fontSize: 18,
         fontWeight: 'bold',
-        textAlign: 'left', // Align text to the left
+        textAlign: 'left',
     },
     viewProfileText: {
-        color: '#4A90E2', // Light blue for "View profile"
+        color: '#4A90E2',
         fontSize: 14,
-        textAlign: 'left', // Align text to the left
+        textAlign: 'left',
     },
-    
-menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 15,
-    paddingHorizontal: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#333',
-},
-menuItemText: {
-    color: 'white',
-    fontSize: 16,
-    marginLeft: 15,
-    flexShrink: 1,
-    textAlign: 'left',
-},
+    searchContainer: {
+        position: 'absolute',
+        top: 37,
+        left: 80,
+        right: 80,
+        zIndex: 2,
+    },
+    searchInput: {
+        height: 50,
+        backgroundColor: '#ffffff',
+        fontSize: 16,
+        borderRadius: 12,
+        paddingHorizontal: 15,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 3,
+        elevation: 3,
+    },
+    searchList: {
+        backgroundColor: '#fff',
+        marginHorizontal: -60,
+        borderRadius: 12,
+        elevation: 2,
+    },
+    menuItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 15,
+        paddingHorizontal: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: '#333',
+    },
+    menuItemText: {
+        color: 'white',
+        fontSize: 16,
+        marginLeft: 15,
+        flexShrink: 1,
+        textAlign: 'left',
+    },
+    instructionsContainer: {
+        position: 'absolute',
+        bottom: 40,
+        left: 20,
+        right: 20,
+        backgroundColor: '#fff',
+        borderRadius: 12,
+        padding: 15,
+        elevation: 4,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+    },
 
+    heading: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        marginBottom: 8,
+        color: '#333',
+    },
+
+    stepRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+
+    stepText: {
+        fontSize: 15,
+        color: '#333',
+        marginLeft: 10,
+        flex: 1,
+        flexWrap: 'wrap',
+    },
+    cancelButton: {
+        position: 'absolute',
+        bottom: 5,
+        right: 0,
+        backgroundColor: 'red',
+        padding: 12,
+        borderRadius: 30,
+        elevation: 4,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+    },
+    addEventButton: {
+        position: 'absolute',
+        bottom: 140,
+        right: 20,
+        backgroundColor: 'white',
+        borderRadius: 40,
+        padding: 10,
+        elevation: 4,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+    },
+
+    addEventIcon: {
+        width: 60,
+        height: 60,
+        resizeMode: 'contain',
+    },
+
+
+    reportPanel: {
+        position: 'absolute',
+        bottom: 100,
+        left: 20,
+        right: 20,
+        backgroundColor: 'white',
+        borderRadius: 12,
+        padding: 16,
+        elevation: 5,
+    },
+    reportHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    reportTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+    },
+    closeReport: {
+        fontSize: 18,
+        color: 'red',
+    },
+    reportGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+    },
+    reportItem: {
+        width: '30%',
+        alignItems: 'center',
+        marginVertical: 10,
+    },
+    reportIcon: {
+        fontSize: 32,
+    },
+    reportLabel: {
+        marginTop: 4,
+        fontSize: 12,
+        textAlign: 'center',
+    },
 
 });
