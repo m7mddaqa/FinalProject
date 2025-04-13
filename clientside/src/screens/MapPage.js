@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions, Keyboard, Linking, Alert, Image, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions, Keyboard, Linking, Alert, Image, ActivityIndicator, ScrollView } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import MapViewDirections from 'react-native-maps-directions';
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
@@ -23,8 +23,6 @@ import { cancelRide, getManeuverIcon, handleRecenter, getManeuverText, handleMen
 
 const googleMapsApiKey = MapsApiKey;
 
-
-
 const NavigationPage = () => {
     const [origin, setOrigin] = useState(null); //user current location
     const [destination, setDestination] = useState(null);//destination location
@@ -44,6 +42,8 @@ const NavigationPage = () => {
     const [isRerouting, setIsRerouting] = useState(false);          // [New] rerouting in progress flag
     const [forceReroute, setForceReroute] = useState(false);        // [New] toggle state to force rerouting
     const lastRerouteTime = useRef(Date.now()); // [NEW] track last reroute time
+    const [searchHistory, setSearchHistory] = useState([]);
+    const [showHistory, setShowHistory] = useState(false);
 
     //functions:
 
@@ -76,28 +76,131 @@ const NavigationPage = () => {
         }
     };
 
-
-    // // TODO LATER: add event to the map
-    // const handleReport = (type) => {
-    //     switch (type) {
-    //         case 'Traffic Jam':
-    //             // do something
-    //             break;
-    //         case 'Police':
-    //             // do something else
-    //             break;
-    //         default:
-    //             console.log(`Reported: ${type}`);
-    //     }
-    // };
-
     //opening menu function + animation
     const handleMenu = () => {
         handleMenuToggle(isMenuVisible, slideAnim, setIsMenuVisible);
     };
 
-    //useEffects:
+    // Function to save search to history
+    const saveSearchToHistory = async (query, location) => {
+        try {
+            const token = await AsyncStorage.getItem('token');
+            if (!token) {
+                console.error('No token found');
+                return;
+            }
 
+            const response = await axios.post(
+                `${URL}/api/search-history`,
+                {
+                    searchQuery: query,
+                    location: {
+                        latitude: location.lat,
+                        longitude: location.lng
+                    }
+                },
+                {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+
+            if (response.status === 200 || response.status === 201) {
+                // Update local search history state
+                const updatedHistory = await fetchSearchHistory();
+                // Remove duplicates and sort by timestamp
+                const uniqueHistory = updatedHistory.reduce((acc, current) => {
+                    const x = acc.find(item => item.searchQuery === current.searchQuery);
+                    if (!x) {
+                        return acc.concat([current]);
+                    } else {
+                        // If duplicate found, keep the one with the most recent timestamp
+                        const existingIndex = acc.findIndex(item => item.searchQuery === current.searchQuery);
+                        if (new Date(current.timestamp) > new Date(acc[existingIndex].timestamp)) {
+                            acc[existingIndex] = current;
+                        }
+                        return acc;
+                    }
+                }, []);
+                setSearchHistory(uniqueHistory);
+            }
+        } catch (error) {
+            console.error('Error saving search history:', error);
+            if (error.response) {
+                console.error('Error response:', error.response.data);
+            }
+        }
+    };
+
+    // Function to fetch search history
+    const fetchSearchHistory = async () => {
+        try {
+            const token = await AsyncStorage.getItem('token');
+            if (!token) {
+                console.error('No token found');
+                return [];
+            }
+
+            const response = await axios.get(
+                `${URL}/api/search-history`,
+                {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+
+            if (response.status === 200) {
+                // Remove duplicates and sort by timestamp
+                const uniqueHistory = response.data.reduce((acc, current) => {
+                    const x = acc.find(item => item.searchQuery === current.searchQuery);
+                    if (!x) {
+                        return acc.concat([current]);
+                    } else {
+                        // If duplicate found, keep the one with the most recent timestamp
+                        const existingIndex = acc.findIndex(item => item.searchQuery === current.searchQuery);
+                        if (new Date(current.timestamp) > new Date(acc[existingIndex].timestamp)) {
+                            acc[existingIndex] = current;
+                        }
+                        return acc;
+                    }
+                }, []);
+                return uniqueHistory.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            }
+            return [];
+        } catch (error) {
+            console.error('Error fetching search history:', error);
+            if (error.response) {
+                console.error('Error response:', error.response.data);
+            }
+            return [];
+        }
+    };
+
+    // Fetch search history when component mounts
+    useEffect(() => {
+        const loadHistory = async () => {
+            const history = await fetchSearchHistory();
+            setSearchHistory(history);
+        };
+        loadHistory();
+    }, []);
+
+    // Custom render function for search history items
+    const renderHistoryItem = (item) => ({
+        description: item.searchQuery,
+        geometry: {
+            location: {
+                lat: item.location.latitude,
+                lng: item.location.longitude
+            }
+        }
+    });
+
+    //useEffects:
 
     //check if token exists
     useEffect(() => {
@@ -272,6 +375,7 @@ const NavigationPage = () => {
                                     latitude: loc.lat,
                                     longitude: loc.lng,
                                 });
+                                saveSearchToHistory(data.description, loc);
                                 Keyboard.dismiss();
                             }
                         }}
@@ -286,7 +390,77 @@ const NavigationPage = () => {
                             textInput: styles.searchInput,
                             listView: styles.searchList,
                         }}
+                        // Add search history as predefined places
+                        predefinedPlaces={searchHistory.map(renderHistoryItem)}
+                        // Custom render for history items
+                        renderRow={(data, index) => {
+                            const isHistoryItem = searchHistory.some(
+                                item => item.searchQuery === data.description
+                            );
+                            return (
+                                <View style={[
+                                    styles.suggestionRow,
+                                    isHistoryItem && styles.historySuggestionRow
+                                ]}>
+                                    {isHistoryItem && (
+                                        <MaterialIcons 
+                                            name="history" 
+                                            size={20} 
+                                            color="#666" 
+                                            style={styles.historyIcon}
+                                        />
+                                    )}
+                                    <Text style={[
+                                        styles.suggestionText,
+                                        isHistoryItem && styles.historySuggestionText
+                                    ]}>
+                                        {data.description}
+                                    </Text>
+                                </View>
+                            );
+                        }}
                     />
+                    <TouchableOpacity 
+                        style={styles.historyButton}
+                        onPress={() => {
+                            setShowHistory(!showHistory);
+                            if (!showHistory) {
+                                fetchSearchHistory();
+                            }
+                        }}
+                    >
+                        <MaterialIcons name="history" size={24} color="black" />
+                    </TouchableOpacity>
+                </View>
+            )}
+
+            {/* Search History Panel */}
+            {showHistory && !isMenuVisible && (
+                <View style={styles.historyPanel}>
+                    <View style={styles.historyHeader}>
+                        <Text style={styles.historyTitle}>Recent Searches</Text>
+                        <TouchableOpacity onPress={() => setShowHistory(false)}>
+                            <Text style={styles.closeHistory}>✕</Text>
+                        </TouchableOpacity>
+                    </View>
+                    <ScrollView style={styles.historyList}>
+                        {searchHistory.map((item, index) => (
+                            <TouchableOpacity
+                                key={index}
+                                style={styles.historyItem}
+                                onPress={() => {
+                                    setDestination({
+                                        latitude: item.location.latitude,
+                                        longitude: item.location.longitude,
+                                    });
+                                    setShowHistory(false);
+                                }}
+                            >
+                                <MaterialIcons name="history" size={20} color="gray" />
+                                <Text style={styles.historyText}>{item.searchQuery}</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
                 </View>
             )}
 
@@ -444,8 +618,6 @@ const NavigationPage = () => {
                     </View>
                 </View>
             )}
-
-
 
             {/* [New] Rerouting Indicator UI */}
             {isRerouting && (

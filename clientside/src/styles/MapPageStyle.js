@@ -276,4 +276,95 @@ export const styles = StyleSheet.create({
         textAlign: 'center',
     },
 
+    historyButton: {
+        position: 'absolute',
+        right: 10,
+        top: 10,
+        backgroundColor: 'white',
+        padding: 8,
+        borderRadius: 20,
+        elevation: 3,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+    },
+    
+    historyPanel: {
+        position: 'absolute',
+        top: 60,
+        left: 20,
+        right: 20,
+        backgroundColor: 'white',
+        borderRadius: 10,
+        elevation: 5,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+        maxHeight: 300,
+    },
+    
+    historyHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: '#eee',
+    },
+    
+    historyTitle: {
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    
+    closeHistory: {
+        fontSize: 20,
+        color: '#666',
+    },
+    
+    historyList: {
+        maxHeight: 250,
+    },
+    
+    historyItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#eee',
+    },
+    
+    historyText: {
+        marginLeft: 10,
+        fontSize: 14,
+        color: '#333',
+    },
+
+    suggestionRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: '#eee',
+    },
+
+    historySuggestionRow: {
+        backgroundColor: '#f8f8f8',
+    },
+
+    historyIcon: {
+        marginRight: 10,
+    },
+
+    suggestionText: {
+        fontSize: 14,
+        color: '#333',
+    },
+
+    historySuggestionText: {
+        color: '#666',
+    },
+
 });

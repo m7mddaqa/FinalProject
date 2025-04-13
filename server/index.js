@@ -11,6 +11,7 @@ import signupRouter from './Routers/signupRouter.js';
 import loginRouter from './Routers/loginRouter.js';
 import testingRoute from './Routers/testingRoute.js';
 import eventsRoute from './Routers/events.js';
+import searchHistoryRouter from './Routers/searchHistory.js';
 
 const app = express();
 app.use(bodyParser.json());
@@ -34,6 +35,7 @@ app.use(signupRouter);
 app.use(loginRouter);
 app.use(testingRoute);
 app.use('/api/events', eventsRoute);
+app.use('/api/search-history', searchHistoryRouter);
 
 app.get('/login', (req,res) => {
     res.send("Login page")
