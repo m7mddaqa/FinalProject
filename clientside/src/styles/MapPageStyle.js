@@ -367,4 +367,86 @@ export const styles = StyleSheet.create({
         color: '#666',
     },
 
+    volunteerButton: {
+        position: 'absolute',
+        right: 20,
+        bottom: 100,
+        backgroundColor: '#067ef5',
+        padding: 15,
+        borderRadius: 30,
+        elevation: 5,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+    },
+    
+    volunteerPanel: {
+        position: 'absolute',
+        right: 20,
+        bottom: 160,
+        backgroundColor: 'white',
+        padding: 15,
+        borderRadius: 10,
+        elevation: 5,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+        width: 300,
+        maxHeight: 400,
+    },
+    
+    volunteerTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        marginBottom: 15,
+        color: '#067ef5',
+        textAlign: 'center',
+    },
+    
+    volunteerReportsList: {
+        maxHeight: 300,
+    },
+    
+    volunteerReportItem: {
+        backgroundColor: '#f8f9fa',
+        padding: 10,
+        borderRadius: 8,
+        marginBottom: 10,
+        borderWidth: 1,
+        borderColor: '#e9ecef',
+    },
+    
+    volunteerReportType: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#333',
+        marginBottom: 5,
+    },
+    
+    volunteerReportLocation: {
+        fontSize: 14,
+        color: '#666',
+        marginBottom: 5,
+    },
+    
+    volunteerReportTime: {
+        fontSize: 12,
+        color: '#888',
+        marginBottom: 10,
+    },
+    
+    resolveButton: {
+        backgroundColor: '#28a745',
+        padding: 8,
+        borderRadius: 5,
+        alignItems: 'center',
+    },
+    
+    resolveButtonText: {
+        color: 'white',
+        fontWeight: 'bold',
+    },
+
 });

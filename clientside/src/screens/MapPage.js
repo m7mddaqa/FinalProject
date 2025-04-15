@@ -19,6 +19,7 @@ import polyline from '@mapbox/polyline';
 import axios from 'axios';
 import { URL } from '@env';
 import LogoutButton from './LogoutButton';
+import { isVolunteer } from '../services/userTypeService';
 
 import { cancelRide, getManeuverIcon, handleRecenter, getManeuverText, handleMenuToggle, calculateDistanceToRoute } from '../services/driveHelpers';
 
@@ -45,6 +46,9 @@ const NavigationPage = () => {
     const lastRerouteTime = useRef(Date.now()); // [NEW] track last reroute time
     const [searchHistory, setSearchHistory] = useState([]);
     const [showHistory, setShowHistory] = useState(false);
+    const [isVolunteerUser, setIsVolunteerUser] = useState(false);
+    const [showVolunteerPanel, setShowVolunteerPanel] = useState(false);
+    const [volunteerReports, setVolunteerReports] = useState([]);
 
     //functions:
 
@@ -344,6 +348,57 @@ const NavigationPage = () => {
         };
     }, [instructions, currentStepIndex]);
 
+    useEffect(() => {
+        const checkUserType = async () => {
+            console.log('Checking user type...');
+            const volunteerStatus = await isVolunteer();
+            console.log('Volunteer status:', volunteerStatus);
+            setIsVolunteerUser(volunteerStatus);
+            if (volunteerStatus) {
+                console.log('Fetching volunteer reports...');
+                fetchVolunteerReports();
+            }
+        };
+        checkUserType();
+    }, []);
+
+    const fetchVolunteerReports = async () => {
+        try {
+            console.log('Attempting to fetch reports...');
+            const token = await AsyncStorage.getItem('token');
+            console.log('Token exists:', !!token);
+            const response = await axios.get(`${URL}/api/events`, {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
+            console.log('Reports fetched:', response.data);
+            setVolunteerReports(response.data);
+        } catch (error) {
+            console.error('Error fetching reports:', error);
+        }
+    };
+
+    const handleVolunteerPanel = () => {
+        setShowVolunteerPanel(prev => !prev);
+    };
+
+    const handleResolveReport = async (reportId) => {
+        try {
+            const token = await AsyncStorage.getItem('token');
+            await axios.put(`${URL}/api/events/${reportId}/resolve`, {}, {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
+            Alert.alert('Success', 'Report marked as resolved');
+            fetchVolunteerReports();
+        } catch (error) {
+            console.error('Error resolving report:', error);
+            Alert.alert('Error', 'Failed to resolve report');
+        }
+    };
+
     // rendering:
     if (isCheckingToken) {
         return (
@@ -624,6 +679,40 @@ const NavigationPage = () => {
                 <View style={{ position: 'absolute', top: 80, alignSelf: 'center', backgroundColor: 'rgba(255,255,255,0.8)', padding: 8, borderRadius: 5, flexDirection: 'row', alignItems: 'center' }}>
                     <ActivityIndicator size="small" color="#000" />
                     <Text style={{ marginLeft: 5, fontWeight: 'bold' }}>Recalculating...</Text>
+                </View>
+            )}
+
+            {isVolunteerUser && (
+                <TouchableOpacity 
+                    style={styles.volunteerButton}
+                    onPress={handleVolunteerPanel}
+                >
+                    <MaterialCommunityIcons name="account-group" size={24} color="white" />
+                </TouchableOpacity>
+            )}
+
+            {showVolunteerPanel && (
+                <View style={styles.volunteerPanel}>
+                    <Text style={styles.volunteerTitle}>Volunteer Dashboard</Text>
+                    <ScrollView style={styles.volunteerReportsList}>
+                        {volunteerReports.map((report) => (
+                            <View key={report._id} style={styles.volunteerReportItem}>
+                                <Text style={styles.volunteerReportType}>{report.type}</Text>
+                                <Text style={styles.volunteerReportLocation}>
+                                    Location: {report.location.latitude.toFixed(4)}, {report.location.longitude.toFixed(4)}
+                                </Text>
+                                <Text style={styles.volunteerReportTime}>
+                                    Reported: {new Date(report.createdAt).toLocaleString()}
+                                </Text>
+                                <TouchableOpacity 
+                                    style={styles.resolveButton}
+                                    onPress={() => handleResolveReport(report._id)}
+                                >
+                                    <Text style={styles.resolveButtonText}>Mark as Resolved</Text>
+                                </TouchableOpacity>
+                            </View>
+                        ))}
+                    </ScrollView>
                 </View>
             )}
         </View>

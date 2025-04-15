@@ -55,16 +55,19 @@ const SignInPage = ({ navigation }) => {
                 username: username,
                 password: password
             });
-            const token = response.data.token;
-            //save the token to asyncstorage
+            console.log('Login response:', response.data);
+            const { token, userType } = response.data;
+            console.log('Token:', token);
+            console.log('User type:', userType);
+            //save the token and userType to asyncstorage
             await AsyncStorage.setItem('token', token);
+            await AsyncStorage.setItem('userType', userType);
             console.log('Success user logged in successfully', response.data);
             navigation.navigate('Home');
         }
         catch (err) {
-            if (err.response.data.message) {
+            if (err.response?.data?.message) {
                 setError(err.response.data.message);
-                //for any other unidentified errors
             } else {
                 console.error('Unexpected Error:', err);
                 setError('An unexpected error occurred. Please try again later.');

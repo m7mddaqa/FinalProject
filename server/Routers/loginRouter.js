@@ -28,12 +28,19 @@ router.post('/login', async (req, res) => {
         }
         const checkPassword = await bcrypt.compare(password, user.password);
         if (!checkPassword) {
-            console.log('Incorrect password'); //debug log
+            console.log('Incorrect password');
             return res.status(400).json({ message: 'Incorrect password, try again or click forgot your password' });
         }
-        const token = generateAccessToken({ id: user._id });
-        console.log('Token generated:', token); //debug log
-        res.status(200).json({ message: 'Signing in', token });
+        const token = generateAccessToken({ 
+            id: user._id,
+            userType: user.userType 
+        });
+        console.log('Token generated:', token);
+        res.status(200).json({ 
+            message: 'Signing in', 
+            token,
+            userType: user.userType 
+        });
     }
     catch (err) {
         console.error(err);

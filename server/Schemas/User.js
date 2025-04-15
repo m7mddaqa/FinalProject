@@ -15,6 +15,11 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    userType: {
+        type: String,
+        enum: ['user', 'volunteer'],
+        default: 'user'
+    },
     score: {
         type: Number,
         default: 0
