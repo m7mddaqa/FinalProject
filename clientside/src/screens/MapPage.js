@@ -49,6 +49,14 @@ const NavigationPage = () => {
     const [isVolunteerUser, setIsVolunteerUser] = useState(false);
     const [showVolunteerPanel, setShowVolunteerPanel] = useState(false);
     const [volunteerReports, setVolunteerReports] = useState([]);
+    const [showDebugInfo, setShowDebugInfo] = useState(false);
+    const [currentDistance, setCurrentDistance] = useState(0);
+    const [nextStepDistance, setNextStepDistance] = useState(0);
+    const [isOffRoute, setIsOffRoute] = useState(false);
+    const [showAllSteps, setShowAllSteps] = useState(false);
+    const [eta, setEta] = useState(null);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [isInternationalSearch, setIsInternationalSearch] = useState(false);
 
     //functions:
 
@@ -258,35 +266,47 @@ const NavigationPage = () => {
     useEffect(() => {
         if (!origin || !destination) return;
         const fetchDirections = async () => {
-            //fetch directions from Google Maps API https://developers.google.com/maps/documentation/directions/get-directions
-            const res = await fetch(`https://maps.googleapis.com/maps/api/directions/json?origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}&key=${googleMapsApiKey}&region=il`);
-            //turns the google res into json
-            const data = await res.json();
-            if (data.routes?.length) {
-                // [New] store full route polyline for off-route detection
-                const encodedPolyline = data.routes[0].overview_polyline?.points;
-                if (encodedPolyline) {
-                    const decodedPath = polyline.decode(encodedPolyline);
-                    const fullRoute = decodedPath.map(([lat, lng]) => ({ latitude: lat, longitude: lng }));
-                    setRouteCoordinates(fullRoute);
+            try {
+                const response = await fetch(
+                    `https://maps.googleapis.com/maps/api/directions/json?origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}&key=${googleMapsApiKey}`
+                );
+                const data = await response.json();
+
+                if (data.routes.length > 0) {
+                    const route = data.routes[0];
+                    const points = polyline.decode(route.overview_polyline.points);
+                    const routeCoords = points.map(point => ({
+                        latitude: point[0],
+                        longitude: point[1]
+                    }));
+                    setRouteCoordinates(routeCoords);
+
+                    const steps = route.legs[0].steps.map(step => ({
+                        distance: step.distance.value,
+                        duration: step.duration.value,
+                        instruction: step.html_instructions.replace(/<[^>]*>/g, ''),
+                        maneuver: step.maneuver,
+                        startLocation: step.start_location,
+                        endLocation: step.end_location
+                    }));
+                    setInstructions(steps);
+                    setCurrentStepIndex(0);
+
+                    // Log detailed route information
+                    console.log('Route Details:', {
+                        totalDistance: route.legs[0].distance.text,
+                        totalDuration: route.legs[0].duration.text,
+                        numberOfSteps: steps.length,
+                        steps: steps.map(step => ({
+                            instruction: step.instruction,
+                            distance: step.distance,
+                            maneuver: step.maneuver
+                        }))
+                    });
                 }
-                //mapping over the steps in the first route and leg
-                const steps = data.routes[0].legs[0].steps.map(step => ({
-                    instruction: step.html_instructions.replace(/<[^>]*>?/gm, ''),
-                    distance: step.distance.text,
-                    duration: step.duration.text,
-                    //turn left right etc..
-                    maneuver: step.maneuver || 'straight',
-                    location: {
-                        latitude: step.end_location.lat,
-                        longitude: step.end_location.lng,
-                    }
-                }));
-                setInstructions(steps);
-                setCurrentStepIndex(0);
-                Speech.speak(`Let's go! ${steps[0].instruction}`);
+            } catch (error) {
+                console.error('Error fetching directions:', error);
             }
-            setIsRerouting(false); // [New] done recalculating, hide indicator
         };
         fetchDirections();
     }, [destination, forceReroute]); // [Modified] include forceReroute to allow re-fetch
@@ -301,50 +321,56 @@ const NavigationPage = () => {
 
     //track user progress and handle rerouting
     useEffect(() => {
-        //if instructions is empty or origin is null, return
         if (!origin || !instructions.length) return;
-        //Location.watchPositionAsync(options, callback), DOC: Location.watchPositionAsync(options, callback)
+        
         const subscription = Location.watchPositionAsync({
-            accuracy: Location.Accuracy.BestForNavigation, // [Modified] highest accuracy for navigation
-            timeInterval: 1000,         // [Modified] update every 1 second
-            distanceInterval: 5,        // [Modified] update every 5 meters
-        }, location => {  //location is a callback function
+            accuracy: Location.Accuracy.BestForNavigation,
+            timeInterval: 1000,
+            distanceInterval: 5,
+        }, location => {
             const currLoc = {
                 latitude: location.coords.latitude,
                 longitude: location.coords.longitude,
             };
             const step = instructions[currentStepIndex];
-            setOrigin(currLoc);  //update the Origin
-            // [Modified] calculate distance to next step in meters
-            const dLat = (step.location.latitude - currLoc.latitude) * 111000;//coords of the difference between user current location and the step location (longitude)
-            const dLon = (step.location.longitude - currLoc.longitude) * 111000 * Math.cos(currLoc.latitude * Math.PI / 180); //coords of the difference between user current location and the step location (latitude)
-            const distanceToNextStep = Math.sqrt(dLat * dLat + dLon * dLon);//convert distance coords to rough meters
-            if (distanceToNextStep < 30 && currentStepIndex < instructions.length - 1) {//if the user is within 30 meters of the step location and there are more steps
-                // speak the next step
-                const nextStep = instructions[currentStepIndex + 1];
-                Speech.speak(getManeuverText(nextStep.maneuver, nextStep.instruction));
-                setCurrentStepIndex(prev => prev + 1);
-            } else {
-                // [Enhanced] Off-route detection using next step distance and route distance
-                const offRouteByStep = distanceToNextStep > 80;
+            setOrigin(currLoc);
+
+            // Calculate distance to next step in meters
+            const dLat = (step.endLocation.lat - currLoc.latitude) * 111000;
+            const dLon = (step.endLocation.lng - currLoc.longitude) * 111000 * Math.cos(currLoc.latitude * Math.PI / 180);
+            const distanceToNextStep = Math.sqrt(dLat * dLat + dLon * dLon);
+
+            // Only check for off-route if we're not very close to the next step
+            if (distanceToNextStep > 30) {
+                const offRouteByStep = distanceToNextStep > 150; // Increased threshold
                 let offRouteByRoute = false;
+                
                 if (routeCoordinates.length) {
                     const distanceFromRoute = calculateDistanceToRoute(currLoc, routeCoordinates);
-                    offRouteByRoute = distanceFromRoute > 50;
+                    offRouteByRoute = distanceFromRoute > 100; // Increased threshold
                 }
+
                 const now = Date.now();
-                if ((offRouteByStep || offRouteByRoute) && !isRerouting && now - lastRerouteTime.current > 10000) {
+                // Only reroute if we're significantly off route and haven't rerouted recently
+                if ((offRouteByStep || offRouteByRoute) && !isRerouting && now - lastRerouteTime.current > 30000) { // Increased cooldown to 30 seconds
                     console.log('User off route. Recalculating...');
                     Speech.speak('Recalculating...');
                     setIsRerouting(true);
                     setForceReroute(prev => !prev);
-                    lastRerouteTime.current = now; // update last reroute time
+                    lastRerouteTime.current = now;
                 }
+            }
 
+            // Move to next step if close enough
+            if (distanceToNextStep < 30 && currentStepIndex < instructions.length - 1) {
+                const nextStep = instructions[currentStepIndex + 1];
+                Speech.speak(getManeuverText(nextStep.maneuver, nextStep.instruction));
+                setCurrentStepIndex(prev => prev + 1);
             }
         });
+
         return () => {
-            subscription.then(sub => sub.remove()); //when this component unmounts or useEffect re-runs, wait for the subscription to be ready, and then call .remove() to clean it up
+            subscription.then(sub => sub.remove());
         };
     }, [instructions, currentStepIndex]);
 
@@ -399,6 +425,148 @@ const NavigationPage = () => {
         }
     };
 
+    // Add this function to check if user is off route
+    const checkRouteDeviation = async () => {
+        if (!origin || !routeCoordinates.length) return;
+
+        try {
+            const { coords } = await Location.getCurrentPositionAsync({});
+            const distance = calculateDistanceToRoute(
+                { latitude: coords.latitude, longitude: coords.longitude },
+                routeCoordinates
+            );
+            
+            // If more than 50 meters from route, consider it a wrong turn
+            const isDeviated = distance > 50;
+            setIsOffRoute(isDeviated);
+            
+            if (isDeviated) {
+                Alert.alert(
+                    "Wrong Turn Detected",
+                    "You have deviated from the route. Recalculating...",
+                    [{ text: "OK" }]
+                );
+                // Trigger rerouting
+                setForceReroute(true);
+            }
+        } catch (error) {
+            console.error("Error checking route deviation:", error);
+        }
+    };
+
+    // Add this useEffect to periodically check route deviation
+    useEffect(() => {
+        const interval = setInterval(() => {
+            if (instructions.length > 0) {
+                checkRouteDeviation();
+            }
+        }, 5000); // Check every 5 seconds
+
+        return () => clearInterval(interval);
+    }, [instructions, routeCoordinates]);
+
+    // Modify the fetchDirections function to include more debug info
+    const fetchDirections = async () => {
+        try {
+            if (!origin || !destination) return;
+
+            const response = await fetch(
+                `https://maps.googleapis.com/maps/api/directions/json?origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}&key=${googleMapsApiKey}`
+            );
+            const data = await response.json();
+
+            if (data.routes.length > 0) {
+                const route = data.routes[0];
+                const points = polyline.decode(route.overview_polyline.points);
+                const routeCoords = points.map(point => ({
+                    latitude: point[0],
+                    longitude: point[1]
+                }));
+                setRouteCoordinates(routeCoords);
+
+                const steps = route.legs[0].steps.map(step => ({
+                    distance: step.distance.value,
+                    duration: step.duration.value,
+                    instruction: step.html_instructions.replace(/<[^>]*>/g, ''),
+                    maneuver: step.maneuver,
+                    startLocation: step.start_location,
+                    endLocation: step.end_location
+                }));
+                setInstructions(steps);
+                setCurrentStepIndex(0);
+
+                // Log detailed route information
+                console.log('Route Details:', {
+                    totalDistance: route.legs[0].distance.text,
+                    totalDuration: route.legs[0].duration.text,
+                    numberOfSteps: steps.length,
+                    steps: steps.map(step => ({
+                        instruction: step.instruction,
+                        distance: step.distance,
+                        maneuver: step.maneuver
+                    }))
+                });
+            }
+        } catch (error) {
+            console.error('Error fetching directions:', error);
+        }
+    };
+
+    // Add this function to calculate ETA
+    const calculateETA = (steps, currentIndex) => {
+        if (!steps || steps.length === 0) return null;
+        
+        // Sum up remaining durations from current step onwards
+        const totalSeconds = steps.slice(currentIndex).reduce((sum, step) => sum + step.duration, 0);
+        
+        // Calculate arrival time
+        const now = new Date();
+        const arrivalTime = new Date(now.getTime() + totalSeconds * 1000);
+        
+        // Format as HH:MM
+        const formattedTime = arrivalTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        
+        // Calculate remaining time in hours and minutes
+        const totalMinutes = Math.ceil(totalSeconds / 60);
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
+        
+        let remainingTimeText = '';
+        if (hours > 0) {
+            remainingTimeText = `${hours} hour${hours > 1 ? 's' : ''}`;
+            if (minutes > 0) {
+                remainingTimeText += ` ${minutes} min`;
+            }
+        } else {
+            remainingTimeText = `${minutes} min`;
+        }
+        
+        return {
+            arrivalTime: formattedTime,
+            remainingTime: remainingTimeText
+        };
+    };
+
+    // Update ETA when steps or current step changes
+    useEffect(() => {
+        if (instructions.length > 0) {
+            setEta(calculateETA(instructions, currentStepIndex));
+        }
+    }, [instructions, currentStepIndex]);
+
+    const handleSearchTextChange = (text) => {
+        setSearchQuery(text);
+        // Check if the text contains a country name or major international city
+        const internationalKeywords = [
+            'egypt', 'cairo', 'usa', 'new york', 'london', 'paris', 
+            'rome', 'berlin', 'madrid', 'tokyo', 'dubai', 'country'
+        ];
+        const isInternational = internationalKeywords.some(keyword => 
+            text.toLowerCase().includes(keyword)
+        );
+        setIsInternationalSearch(isInternational);
+    };
+
     // rendering:
     if (isCheckingToken) {
         return (
@@ -439,15 +607,15 @@ const NavigationPage = () => {
                             language: 'en',
                             location: '31.7683,35.2137',
                             radius: 100000,
+                            components: isInternationalSearch ? undefined : 'country:il',
+                            types: ['address', 'establishment', 'geocode'],
                         }}
                         styles={{
                             container: styles.searchContainer,
                             textInput: styles.searchInput,
                             listView: styles.searchList,
                         }}
-                        // Add search history as predefined places
-                        predefinedPlaces={searchHistory.map(renderHistoryItem)}
-                        // Custom render for history items
+                        predefinedPlaces={searchHistory.slice(0, 6).map(renderHistoryItem)}
                         renderRow={(data, index) => {
                             const isHistoryItem = searchHistory.some(
                                 item => item.searchQuery === data.description
@@ -473,6 +641,28 @@ const NavigationPage = () => {
                                     </Text>
                                 </View>
                             );
+                        }}
+                        listViewDisplayed="auto"
+                        minLength={3}
+                        enablePoweredByContainer={false}
+                        debounce={200}
+                        filterReverseGeocodingByTypes={['locality', 'administrative_area_level_3']}
+                        renderDescription={(row) => row.description}
+                        onFail={(error) => console.error(error)}
+                        requestUrl={{
+                            url: 'https://maps.googleapis.com/maps/api',
+                            useOnPlatform: 'web',
+                        }}
+                        nearbyPlacesAPI="GooglePlacesSearch"
+                        GooglePlacesSearchQuery={{
+                            rankby: 'distance',
+                        }}
+                        GooglePlacesDetailsQuery={{
+                            fields: 'formatted_address,geometry',
+                        }}
+                        maxResults={6}
+                        textInputProps={{
+                            onChangeText: handleSearchTextChange
                         }}
                     />
                     <TouchableOpacity 
@@ -617,18 +807,55 @@ const NavigationPage = () => {
             {/* Voice Step Feedback */}
             {instructions.length > 0 && !isMenuVisible && (
                 <View style={styles.instructionsContainer}>
-                    <Text style={styles.heading}>Next Step:</Text>
-                    <View style={styles.stepRow}>
-                        {getManeuverIcon(instructions[currentStepIndex]?.maneuver)}
-                        <Text style={styles.stepText}>
-                            {getManeuverText(instructions[currentStepIndex]?.maneuver, instructions[currentStepIndex]?.instruction)} – {instructions[currentStepIndex]?.distance}
-                        </Text>
-                        {destination && !isMenuVisible && (
-                            <TouchableOpacity style={styles.cancelButton} onPress={() => cancelRide(setDestination, setInstructions, setCurrentStepIndex)}>
-                                <MaterialIcons name="cancel" size={24} color="white" />
-                            </TouchableOpacity>
-                        )}
-                    </View>
+                    <TouchableOpacity 
+                        style={styles.instructionsHeader}
+                        onPress={() => setShowAllSteps(!showAllSteps)}
+                    >
+                        <View style={styles.etaContainer}>
+                            <Text style={styles.etaText}>
+                                Arrival: {eta?.arrivalTime} ({eta?.remainingTime})
+                            </Text>
+                        </View>
+                        <Text style={styles.heading}>Next Step:</Text>
+                        <View style={styles.stepRow}>
+                            {getManeuverIcon(instructions[currentStepIndex]?.maneuver)}
+                            <Text style={styles.stepText}>
+                                {getManeuverText(instructions[currentStepIndex]?.maneuver, instructions[currentStepIndex]?.instruction)} in {instructions[currentStepIndex]?.distance} meters
+                            </Text>
+                            {destination && !isMenuVisible && (
+                                <TouchableOpacity style={styles.cancelButton} onPress={() => cancelRide(setDestination, setInstructions, setCurrentStepIndex)}>
+                                    <MaterialIcons name="cancel" size={24} color="white" />
+                                </TouchableOpacity>
+                            )}
+                        </View>
+                    </TouchableOpacity>
+                    
+                    {showAllSteps && (
+                        <ScrollView 
+                            style={styles.allStepsContainer}
+                            showsVerticalScrollIndicator={true}
+                            nestedScrollEnabled={true}
+                        >
+                            {instructions.map((step, index) => (
+                                <View 
+                                    key={index} 
+                                    style={[
+                                        styles.stepItem,
+                                        index === currentStepIndex && styles.currentStepItem
+                                    ]}
+                                >
+                                    <View style={styles.stepIconContainer}>
+                                        {getManeuverIcon(step.maneuver)}
+                                    </View>
+                                    <View style={styles.stepTextContainer}>
+                                        <Text style={styles.stepItemText}>
+                                            {getManeuverText(step.maneuver, step.instruction)} in {step.distance} meters
+                                        </Text>
+                                    </View>
+                                </View>
+                            ))}
+                        </ScrollView>
+                    )}
                 </View>
             )}
 
@@ -715,6 +942,38 @@ const NavigationPage = () => {
                     </ScrollView>
                 </View>
             )}
+
+            {/* Debug Information Panel */}
+            {showDebugInfo && (
+                <View style={styles.debugPanel}>
+                    <Text style={styles.debugTitle}>Navigation Debug Info</Text>
+                    <Text style={styles.debugText}>
+                        Current Step: {instructions[currentStepIndex]?.instruction}
+                    </Text>
+                    <Text style={styles.debugText}>
+                        Distance to Next Step: {nextStepDistance.toFixed(0)} meters
+                    </Text>
+                    <Text style={styles.debugText}>
+                        Total Steps: {instructions.length}
+                    </Text>
+                    <Text style={styles.debugText}>
+                        Current Step Index: {currentStepIndex}
+                    </Text>
+                    <Text style={[styles.debugText, isOffRoute && styles.offRouteText]}>
+                        Status: {isOffRoute ? 'OFF ROUTE' : 'ON ROUTE'}
+                    </Text>
+                </View>
+            )}
+
+            {/* Debug Toggle Button */}
+            <TouchableOpacity 
+                style={styles.debugButton}
+                onPress={() => setShowDebugInfo(!showDebugInfo)}
+            >
+                <Text style={styles.debugButtonText}>
+                    {showDebugInfo ? 'Hide Debug' : 'Show Debug'}
+                </Text>
+            </TouchableOpacity>
         </View>
     );
 };

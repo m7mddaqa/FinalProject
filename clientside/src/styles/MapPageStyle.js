@@ -172,26 +172,31 @@ export const styles = StyleSheet.create({
         right: 20,
         backgroundColor: '#fff',
         borderRadius: 12,
-        padding: 15,
         elevation: 4,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.2,
         shadowRadius: 4,
     },
-
+    instructionsHeader: {
+        padding: 15,
+    },
+    allStepsContainer: {
+        maxHeight: 400,
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+        borderTopWidth: 1,
+        borderTopColor: '#eee',
+    },
     heading: {
         fontSize: 16,
         fontWeight: 'bold',
         marginBottom: 8,
         color: '#333',
     },
-
     stepRow: {
         flexDirection: 'row',
         alignItems: 'center',
     },
-
     stepText: {
         fontSize: 15,
         color: '#333',
@@ -225,14 +230,11 @@ export const styles = StyleSheet.create({
         shadowOpacity: 0.3,
         shadowRadius: 4,
     },
-
     addEventIcon: {
         width: 60,
         height: 60,
         resizeMode: 'contain',
     },
-
-
     reportPanel: {
         position: 'absolute',
         bottom: 100,
@@ -275,7 +277,6 @@ export const styles = StyleSheet.create({
         fontSize: 12,
         textAlign: 'center',
     },
-
     historyButton: {
         position: 'absolute',
         right: 10,
@@ -289,7 +290,6 @@ export const styles = StyleSheet.create({
         shadowOpacity: 0.25,
         shadowRadius: 3.84,
     },
-    
     historyPanel: {
         position: 'absolute',
         top: 60,
@@ -304,7 +304,6 @@ export const styles = StyleSheet.create({
         shadowRadius: 3.84,
         maxHeight: 300,
     },
-    
     historyHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
@@ -313,21 +312,17 @@ export const styles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: '#eee',
     },
-    
     historyTitle: {
         fontSize: 16,
         fontWeight: 'bold',
     },
-    
     closeHistory: {
         fontSize: 20,
         color: '#666',
     },
-    
     historyList: {
         maxHeight: 250,
     },
-    
     historyItem: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -335,13 +330,11 @@ export const styles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: '#eee',
     },
-    
     historyText: {
         marginLeft: 10,
         fontSize: 14,
         color: '#333',
     },
-
     suggestionRow: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -349,24 +342,19 @@ export const styles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: '#eee',
     },
-
     historySuggestionRow: {
         backgroundColor: '#f8f8f8',
     },
-
     historyIcon: {
         marginRight: 10,
     },
-
     suggestionText: {
         fontSize: 14,
         color: '#333',
     },
-
     historySuggestionText: {
         color: '#666',
     },
-
     volunteerButton: {
         position: 'absolute',
         right: 20,
@@ -380,7 +368,6 @@ export const styles = StyleSheet.create({
         shadowOpacity: 0.25,
         shadowRadius: 3.84,
     },
-    
     volunteerPanel: {
         position: 'absolute',
         right: 20,
@@ -396,7 +383,6 @@ export const styles = StyleSheet.create({
         width: 300,
         maxHeight: 400,
     },
-    
     volunteerTitle: {
         fontSize: 20,
         fontWeight: 'bold',
@@ -404,11 +390,9 @@ export const styles = StyleSheet.create({
         color: '#067ef5',
         textAlign: 'center',
     },
-    
     volunteerReportsList: {
         maxHeight: 300,
     },
-    
     volunteerReportItem: {
         backgroundColor: '#f8f9fa',
         padding: 10,
@@ -417,36 +401,108 @@ export const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: '#e9ecef',
     },
-    
     volunteerReportType: {
         fontSize: 16,
         fontWeight: 'bold',
         color: '#333',
         marginBottom: 5,
     },
-    
     volunteerReportLocation: {
         fontSize: 14,
         color: '#666',
         marginBottom: 5,
     },
-    
     volunteerReportTime: {
         fontSize: 12,
         color: '#888',
         marginBottom: 10,
     },
-    
     resolveButton: {
         backgroundColor: '#28a745',
         padding: 8,
         borderRadius: 5,
         alignItems: 'center',
     },
-    
     resolveButtonText: {
         color: 'white',
         fontWeight: 'bold',
     },
-
+    debugPanel: {
+        position: 'absolute',
+        top: 50,
+        left: 10,
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+        padding: 10,
+        borderRadius: 8,
+        width: 300,
+        zIndex: 1000,
+    },
+    debugTitle: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        marginBottom: 8,
+        color: '#333',
+    },
+    debugText: {
+        fontSize: 14,
+        color: '#333',
+        marginBottom: 4,
+    },
+    offRouteText: {
+        color: 'red',
+        fontWeight: 'bold',
+    },
+    debugButton: {
+        position: 'absolute',
+        top: 10,
+        left: 10,
+        backgroundColor: '#067ef5',
+        padding: 10,
+        borderRadius: 5,
+        zIndex: 1000,
+    },
+    debugButtonText: {
+        color: 'white',
+        fontWeight: 'bold',
+    },
+    stepItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 8,
+        borderBottomWidth: 1,
+        borderBottomColor: '#eee',
+    },
+    currentStepItem: {
+        backgroundColor: 'rgba(0, 122, 255, 0.1)',
+        borderRadius: 4,
+    },
+    stepIconContainer: {
+        width: 30,
+        alignItems: 'center',
+        marginRight: 10,
+    },
+    stepTextContainer: {
+        flex: 1,
+    },
+    stepItemText: {
+        fontSize: 14,
+        color: '#333',
+    },
+    stepDistanceText: {
+        fontSize: 12,
+        color: '#666',
+        marginTop: 2,
+    },
+    etaContainer: {
+        backgroundColor: 'rgba(0, 122, 255, 0.1)',
+        padding: 8,
+        borderRadius: 8,
+        marginBottom: 8,
+        alignItems: 'center',
+    },
+    etaText: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#007AFF',
+    },
 });

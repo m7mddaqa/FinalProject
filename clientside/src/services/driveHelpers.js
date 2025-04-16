@@ -58,43 +58,36 @@ export const getManeuverIcon = (maneuver) => {
 
 // get direction text from the maneuver
 export const getManeuverText = (maneuver, originalText) => {
-    const normalized = maneuver?.toLowerCase() || '';
-    switch (normalized) {
-        case 'depart':
-        case 'head':
-            return 'Start driving';
-        case 'straight':
-        case 'continue':
-            return 'Continue straight';
-        case 'turn-left':
-            return 'Turn left';
+    if (!maneuver) return 'Continue straight';
+    
+    // Handle the first step (depart) differently
+    if (maneuver === 'depart') {
+        return 'Start driving';
+    }
+    
+    switch (maneuver) {
         case 'turn-right':
             return 'Turn right';
-        case 'slight-left':
-            return 'Slight left';
-        case 'slight-right':
-            return 'Slight right';
-        case 'uturn-left':
-        case 'uturn-right':
-            return 'Make a U-turn';
-        case 'roundabout-left':
-        case 'roundabout-right':
-            return 'Enter the roundabout';
+        case 'turn-left':
+            return 'Turn left';
+        case 'straight':
+            return 'Continue straight';
         case 'merge':
-            return 'Merge';
-        case 'ramp-left':
-        case 'ramp-right':
-            return 'Take the ramp on the left';
-        case 'fork-left':
-            return 'Keep left';
+            return 'Merge onto';
         case 'fork-right':
-            return 'Keep right';
-        case 'ferry':
-            return 'Take the ferry';
-        case 'end':
-            return 'You have arrived';
+            return 'Take the right fork';
+        case 'fork-left':
+            return 'Take the left fork';
+        case 'ramp-right':
+            return 'Take the ramp on the right';
+        case 'ramp-left':
+            return 'Take the ramp on the left';
+        case 'uturn':
+            return 'Make a U-turn';
+        case 'roundabout':
+            return 'Enter the roundabout';
         default:
-            return originalText?.replace(/<[^>]*>?/gm, '') || '';
+            return originalText || 'Continue straight';
     }
 };
 
