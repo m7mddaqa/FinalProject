@@ -2,9 +2,12 @@ import * as Speech from 'expo-speech';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import React from 'react';
-import { Animated, Dimensions, BackHandler } from 'react-native';
+import { Animated, Dimensions, BackHandler, Alert } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
+import { URL } from '@env';
 
-// cancel the ride and reset the state
+//cancel the ride and reset the state
 export const cancelRide = (setDestination, setInstructions, setCurrentStepIndex, exit = false) => {
     setDestination(null);
     setInstructions([]);
@@ -15,7 +18,7 @@ export const cancelRide = (setDestination, setInstructions, setCurrentStepIndex,
     }
 };
 
-// get direction icon from the maneuver
+//get direction icon from the maneuver
 export const getManeuverIcon = (maneuver) => {
     switch (maneuver) {
         case 'turn-left':
@@ -59,12 +62,12 @@ export const getManeuverIcon = (maneuver) => {
 // get direction text from the maneuver
 export const getManeuverText = (maneuver, originalText) => {
     if (!maneuver) return 'Continue straight';
-    
-    // Handle the first step (depart) differently
+
+    //handle the first step (depart) differently
     if (maneuver === 'depart') {
         return 'Start driving';
     }
-    
+
     switch (maneuver) {
         case 'turn-right':
             return 'Turn right';
@@ -91,25 +94,7 @@ export const getManeuverText = (maneuver, originalText) => {
     }
 };
 
-// recenter the map to the user's location
-export const handleRecenter = async (setOrigin, setMapRegion) => {
-    let loc = await Location.getLastKnownPositionAsync({});
-    if (!loc) {
-        loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.BestForNavigation }); // [Modified] use BestForNavigation accuracy for recenter
-    }
-    const coords = {
-        latitude: loc.coords.latitude,
-        longitude: loc.coords.longitude,
-    };
-    setOrigin(coords);
-    setMapRegion({
-        ...coords,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-    });
-};
-
-// opening menu function + animation
+//opening menu function + animation
 export const handleMenuToggle = (isMenuVisible, slideAnim, setIsMenuVisible) => {
     if (isMenuVisible) {
         Animated.timing(slideAnim, {
@@ -125,23 +110,26 @@ export const handleMenuToggle = (isMenuVisible, slideAnim, setIsMenuVisible) => 
             useNativeDriver: true,
         }).start();
     }
-};
+};   
 
-const saveSearchToHistory = async (newSearch) => {
-    try {
-        const existingHistory = await AsyncStorage.getItem('searchHistory');
-        let history = existingHistory ? JSON.parse(existingHistory) : [];
-
-        // Prevent duplicates
-        if (!history.includes(newSearch)) {
-            history.unshift(newSearch);
-            if (history.length > 5) history.pop(); // Keep max 5 items
-            await AsyncStorage.setItem('searchHistory', JSON.stringify(history));
-        }
-    } catch (e) {
-        console.error('Failed to save search history', e);
+//recenter the map to the user's location
+export const handleRecenter = async (setOrigin, setMapRegion) => {
+    let loc = await Location.getLastKnownPositionAsync({});
+    if (!loc) {
+        loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.BestForNavigation }); //BestForNavigation accuracy for recenter
     }
+    const coords = {
+        latitude: loc.coords.latitude,
+        longitude: loc.coords.longitude,
+    };
+    setOrigin(coords);
+    setMapRegion({
+        ...coords,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+    });
 };
+
 
 
 //calculate shortest distance from a point to the route polyline (in meters)
@@ -191,3 +179,136 @@ export const calculateDistanceToRoute = (point, routeCoords) => {
     }
     return minDist;
 };
+
+export const handleReport = async (type, setShowReportPanel) => {
+    try {
+        const { coords } = await Location.getCurrentPositionAsync({});
+        const token = await AsyncStorage.getItem('token'); //get token from storage
+
+        await axios.post(`${URL}/api/events`, {
+            type,
+            location: {
+                latitude: coords.latitude,
+                longitude: coords.longitude
+            }
+        }, {
+            headers: {
+                Authorization: `Bearer ${token}`
+            }
+        });
+
+        Alert.alert("Reported", `You reported: ${type}`);
+        setShowReportPanel(false);
+    } catch (error) {
+        console.error("Failed to report event:", error);
+        Alert.alert("Error", "Failed to report event");
+    }
+};
+
+//function to save search to history
+export const saveSearchToHistory = async (query, location, setSearchHistory) => {
+    try {
+        const token = await AsyncStorage.getItem('token');
+        if (!token) {
+            return;
+        }
+
+        const response = await axios.post(
+            `${URL}/api/search-history`,
+            {
+                searchQuery: query,
+                location: {
+                    latitude: location.lat,
+                    longitude: location.lng
+                }
+            },
+            {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+
+        if (response.status === 200 || response.status === 201) {
+            //update local search history state
+            const updatedHistory = await fetchSearchHistory();
+            //remove duplicates and sort by timestamp
+            const uniqueHistory = updatedHistory.reduce((acc, current) => {
+                const x = acc.find(item => item.searchQuery === current.searchQuery);
+                if (!x) {
+                    return acc.concat([current]);
+                } else {
+                    //if duplicate found, keep the one with the most recent timestamp
+                    const existingIndex = acc.findIndex(item => item.searchQuery === current.searchQuery);
+                    if (new Date(current.timestamp) > new Date(acc[existingIndex].timestamp)) {
+                        acc[existingIndex] = current;
+                    }
+                    return acc;
+                }
+            }, []);
+            setSearchHistory(uniqueHistory);
+        }
+    } catch (error) {
+        console.error('Error saving search history:', error);
+        if (error.response) {
+            console.error('Error response:', error.response.data);
+        }
+    }
+};
+
+//function to fetch search history
+export const fetchSearchHistory = async () => {
+    try {
+        const token = await AsyncStorage.getItem('token');
+        if (!token) {
+            return [];
+        }
+
+        const response = await axios.get(
+            `${URL}/api/search-history`,
+            {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+
+        if (response.status === 200) {
+            //remove duplicates and sort by timestamp
+            const uniqueHistory = response.data.reduce((acc, current) => {
+                const x = acc.find(item => item.searchQuery === current.searchQuery);
+                if (!x) {
+                    return acc.concat([current]);
+                } else {
+                    //if duplicate found, keep the one with the most recent timestamp
+                    const existingIndex = acc.findIndex(item => item.searchQuery === current.searchQuery);
+                    if (new Date(current.timestamp) > new Date(acc[existingIndex].timestamp)) {
+                        acc[existingIndex] = current;
+                    }
+                    return acc;
+                }
+            }, []);
+            return uniqueHistory.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        }
+        return [];
+    } catch (error) {
+        console.error('Error fetching search history:', error);
+        if (error.response) {
+            console.error('Error response:', error.response.data);
+        }
+        return [];
+    }
+};
+
+//custom render function for search history items
+export const renderHistoryItem = (item) => ({
+    description: item.searchQuery,
+    geometry: {
+        location: {
+            lat: item.location.latitude,
+            lng: item.location.longitude
+        }
+    }
+});

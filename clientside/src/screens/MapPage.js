@@ -21,7 +21,7 @@ import { URL } from '@env';
 import LogoutButton from './LogoutButton';
 import { isVolunteer } from '../services/userTypeService';
 
-import { cancelRide, getManeuverIcon, handleRecenter, getManeuverText, handleMenuToggle, calculateDistanceToRoute } from '../services/driveHelpers';
+import { cancelRide, getManeuverIcon, handleRecenter,renderHistoryItem,handleMenuToggle, getManeuverText, calculateDistanceToRoute, handleReport, saveSearchToHistory, fetchSearchHistory} from '../services/driveHelpers';
 
 const googleMapsApiKey = MapsApiKey;
 
@@ -49,9 +49,6 @@ const NavigationPage = () => {
     const [isVolunteerUser, setIsVolunteerUser] = useState(false);
     const [showVolunteerPanel, setShowVolunteerPanel] = useState(false);
     const [volunteerReports, setVolunteerReports] = useState([]);
-    const [showDebugInfo, setShowDebugInfo] = useState(false);
-    const [currentDistance, setCurrentDistance] = useState(0);
-    const [nextStepDistance, setNextStepDistance] = useState(0);
     const [isOffRoute, setIsOffRoute] = useState(false);
     const [showAllSteps, setShowAllSteps] = useState(false);
     const [eta, setEta] = useState(null);
@@ -64,152 +61,13 @@ const NavigationPage = () => {
         setShowReportPanel(prev => !prev);
     };
 
-    const handleReport = async (type) => {
-        try {
-            const { coords } = await Location.getCurrentPositionAsync({});
-            const token = await AsyncStorage.getItem('token'); // Get token from storage
 
-            await axios.post(`${URL}/api/events`, {
-                type,
-                location: {
-                    latitude: coords.latitude,
-                    longitude: coords.longitude
-                }
-            }, {
-                headers: {
-                    Authorization: `Bearer ${token}`
-                }
-            });
-
-            Alert.alert("Reported", `You reported: ${type}`);
-            setShowReportPanel(false);
-        } catch (error) {
-            console.error("Failed to report event:", error);
-            Alert.alert("Error", "Failed to report event");
-        }
-    };
-
-    //opening menu function + animation
-    const handleMenu = () => {
+//opening menu function + animation
+const handleMenu = () => {
         handleMenuToggle(isMenuVisible, slideAnim, setIsMenuVisible);
     };
 
-    // Function to save search to history
-    const saveSearchToHistory = async (query, location) => {
-        try {
-            const token = await AsyncStorage.getItem('token');
-            if (!token) {
-                return;
-            }
 
-            const response = await axios.post(
-                `${URL}/api/search-history`,
-                {
-                    searchQuery: query,
-                    location: {
-                        latitude: location.lat,
-                        longitude: location.lng
-                    }
-                },
-                {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    }
-                }
-            );
-
-            if (response.status === 200 || response.status === 201) {
-                // Update local search history state
-                const updatedHistory = await fetchSearchHistory();
-                // Remove duplicates and sort by timestamp
-                const uniqueHistory = updatedHistory.reduce((acc, current) => {
-                    const x = acc.find(item => item.searchQuery === current.searchQuery);
-                    if (!x) {
-                        return acc.concat([current]);
-                    } else {
-                        // If duplicate found, keep the one with the most recent timestamp
-                        const existingIndex = acc.findIndex(item => item.searchQuery === current.searchQuery);
-                        if (new Date(current.timestamp) > new Date(acc[existingIndex].timestamp)) {
-                            acc[existingIndex] = current;
-                        }
-                        return acc;
-                    }
-                }, []);
-                setSearchHistory(uniqueHistory);
-            }
-        } catch (error) {
-            console.error('Error saving search history:', error);
-            if (error.response) {
-                console.error('Error response:', error.response.data);
-            }
-        }
-    };
-
-    // Function to fetch search history
-    const fetchSearchHistory = async () => {
-        try {
-            const token = await AsyncStorage.getItem('token');
-            if (!token) {
-                return [];
-            }
-
-            const response = await axios.get(
-                `${URL}/api/search-history`,
-                {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    }
-                }
-            );
-
-            if (response.status === 200) {
-                // Remove duplicates and sort by timestamp
-                const uniqueHistory = response.data.reduce((acc, current) => {
-                    const x = acc.find(item => item.searchQuery === current.searchQuery);
-                    if (!x) {
-                        return acc.concat([current]);
-                    } else {
-                        // If duplicate found, keep the one with the most recent timestamp
-                        const existingIndex = acc.findIndex(item => item.searchQuery === current.searchQuery);
-                        if (new Date(current.timestamp) > new Date(acc[existingIndex].timestamp)) {
-                            acc[existingIndex] = current;
-                        }
-                        return acc;
-                    }
-                }, []);
-                return uniqueHistory.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-            }
-            return [];
-        } catch (error) {
-            console.error('Error fetching search history:', error);
-            if (error.response) {
-                console.error('Error response:', error.response.data);
-            }
-            return [];
-        }
-    };
-
-    // Fetch search history when component mounts
-    useEffect(() => {
-        const loadHistory = async () => {
-            const history = await fetchSearchHistory();
-            setSearchHistory(history);
-        };
-        loadHistory();
-    }, []);
-
-    // Custom render function for search history items
-    const renderHistoryItem = (item) => ({
-        description: item.searchQuery,
-        geometry: {
-            location: {
-                lat: item.location.latitude,
-                lng: item.location.longitude
-            }
-        }
-    });
 
     //useEffects:
 
@@ -221,6 +79,17 @@ const NavigationPage = () => {
             setIsCheckingToken(false);
         })();
     }, []);
+
+
+    //fetch search history when component mounts
+    useEffect(() => {
+        const loadHistory = async () => {
+            const history = await fetchSearchHistory();
+            setSearchHistory(history);
+        };
+        loadHistory();
+    }, []);
+
 
     //check and get location permission
     useEffect(() => {
@@ -323,54 +192,66 @@ const NavigationPage = () => {
     useEffect(() => {
         if (!origin || !instructions.length) return;
         
-        const subscription = Location.watchPositionAsync({
-            accuracy: Location.Accuracy.BestForNavigation,
-            timeInterval: 1000,
-            distanceInterval: 5,
-        }, location => {
-            const currLoc = {
-                latitude: location.coords.latitude,
-                longitude: location.coords.longitude,
-            };
-            const step = instructions[currentStepIndex];
-            setOrigin(currLoc);
+        let subscription = null;
+        
+        const setupLocationTracking = async () => {
+            try {
+                subscription = await Location.watchPositionAsync({
+                    accuracy: Location.Accuracy.BestForNavigation,
+                    timeInterval: 1000,
+                    distanceInterval: 5,
+                }, location => {
+                    const currLoc = {
+                        latitude: location.coords.latitude,
+                        longitude: location.coords.longitude,
+                    };
+                    const step = instructions[currentStepIndex];
+                    setOrigin(currLoc);
 
-            // Calculate distance to next step in meters
-            const dLat = (step.endLocation.lat - currLoc.latitude) * 111000;
-            const dLon = (step.endLocation.lng - currLoc.longitude) * 111000 * Math.cos(currLoc.latitude * Math.PI / 180);
-            const distanceToNextStep = Math.sqrt(dLat * dLat + dLon * dLon);
+                    // Calculate distance to next step in meters
+                    const dLat = (step.endLocation.lat - currLoc.latitude) * 111000;
+                    const dLon = (step.endLocation.lng - currLoc.longitude) * 111000 * Math.cos(currLoc.latitude * Math.PI / 180);
+                    const distanceToNextStep = Math.sqrt(dLat * dLat + dLon * dLon);
 
-            // Only check for off-route if we're not very close to the next step
-            if (distanceToNextStep > 30) {
-                const offRouteByStep = distanceToNextStep > 150; // Increased threshold
-                let offRouteByRoute = false;
-                
-                if (routeCoordinates.length) {
-                    const distanceFromRoute = calculateDistanceToRoute(currLoc, routeCoordinates);
-                    offRouteByRoute = distanceFromRoute > 100; // Increased threshold
-                }
+                    // Only check for off-route if we're not very close to the next step
+                    if (distanceToNextStep > 30) {
+                        const offRouteByStep = distanceToNextStep > 150; // Increased threshold
+                        let offRouteByRoute = false;
+                        
+                        if (routeCoordinates.length) {
+                            const distanceFromRoute = calculateDistanceToRoute(currLoc, routeCoordinates);
+                            offRouteByRoute = distanceFromRoute > 100; // Increased threshold
+                        }
 
-                const now = Date.now();
-                // Only reroute if we're significantly off route and haven't rerouted recently
-                if ((offRouteByStep || offRouteByRoute) && !isRerouting && now - lastRerouteTime.current > 30000) { // Increased cooldown to 30 seconds
-                    console.log('User off route. Recalculating...');
-                    Speech.speak('Recalculating...');
-                    setIsRerouting(true);
-                    setForceReroute(prev => !prev);
-                    lastRerouteTime.current = now;
-                }
+                        const now = Date.now();
+                        // Only reroute if we're significantly off route and haven't rerouted recently
+                        if ((offRouteByStep || offRouteByRoute) && !isRerouting && now - lastRerouteTime.current > 30000) { // Increased cooldown to 30 seconds
+                            console.log('User off route. Recalculating...');
+                            Speech.speak('Recalculating...');
+                            setIsRerouting(true);
+                            setForceReroute(prev => !prev);
+                            lastRerouteTime.current = now;
+                        }
+                    }
+
+                    // Move to next step if close enough
+                    if (distanceToNextStep < 30 && currentStepIndex < instructions.length - 1) {
+                        const nextStep = instructions[currentStepIndex + 1];
+                        Speech.speak(getManeuverText(nextStep.maneuver, nextStep.instruction));
+                        setCurrentStepIndex(prev => prev + 1);
+                    }
+                });
+            } catch (error) {
+                console.error('Error setting up location tracking:', error);
             }
+        };
 
-            // Move to next step if close enough
-            if (distanceToNextStep < 30 && currentStepIndex < instructions.length - 1) {
-                const nextStep = instructions[currentStepIndex + 1];
-                Speech.speak(getManeuverText(nextStep.maneuver, nextStep.instruction));
-                setCurrentStepIndex(prev => prev + 1);
-            }
-        });
+        setupLocationTracking();
 
         return () => {
-            subscription.then(sub => sub.remove());
+            if (subscription && typeof subscription.remove === 'function') {
+                subscription.remove();
+            }
         };
     }, [instructions, currentStepIndex]);
 
@@ -454,18 +335,18 @@ const NavigationPage = () => {
         }
     };
 
-    // Add this useEffect to periodically check route deviation
+    //add this useEffect to periodically check route deviation
     useEffect(() => {
         const interval = setInterval(() => {
             if (instructions.length > 0) {
                 checkRouteDeviation();
             }
-        }, 5000); // Check every 5 seconds
+        }, 5000); //check every 5 seconds
 
         return () => clearInterval(interval);
     }, [instructions, routeCoordinates]);
 
-    // Modify the fetchDirections function to include more debug info
+    //modify the fetchDirections function to include more debug info
     const fetchDirections = async () => {
         try {
             if (!origin || !destination) return;
@@ -495,7 +376,7 @@ const NavigationPage = () => {
                 setInstructions(steps);
                 setCurrentStepIndex(0);
 
-                // Log detailed route information
+                //log detailed route information
                 console.log('Route Details:', {
                     totalDistance: route.legs[0].distance.text,
                     totalDuration: route.legs[0].duration.text,
@@ -512,21 +393,21 @@ const NavigationPage = () => {
         }
     };
 
-    // Add this function to calculate ETA
+    //add this function to calculate ETA
     const calculateETA = (steps, currentIndex) => {
         if (!steps || steps.length === 0) return null;
         
-        // Sum up remaining durations from current step onwards
+        //sum up remaining durations from current step onwards
         const totalSeconds = steps.slice(currentIndex).reduce((sum, step) => sum + step.duration, 0);
         
-        // Calculate arrival time
+        //calculate arrival time
         const now = new Date();
         const arrivalTime = new Date(now.getTime() + totalSeconds * 1000);
         
-        // Format as HH:MM
+        //format as HH:MM
         const formattedTime = arrivalTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         
-        // Calculate remaining time in hours and minutes
+        //calculate remaining time in hours and minutes
         const totalMinutes = Math.ceil(totalSeconds / 60);
         const hours = Math.floor(totalMinutes / 60);
         const minutes = totalMinutes % 60;
@@ -547,7 +428,7 @@ const NavigationPage = () => {
         };
     };
 
-    // Update ETA when steps or current step changes
+    //update ETA when steps or current step changes
     useEffect(() => {
         if (instructions.length > 0) {
             setEta(calculateETA(instructions, currentStepIndex));
@@ -556,7 +437,7 @@ const NavigationPage = () => {
 
     const handleSearchTextChange = (text) => {
         setSearchQuery(text);
-        // Check if the text contains a country name or major international city
+        //check if the text contains a country name or major international city
         const internationalKeywords = [
             'egypt', 'cairo', 'usa', 'new york', 'london', 'paris', 
             'rome', 'berlin', 'madrid', 'tokyo', 'dubai', 'country'
@@ -567,7 +448,9 @@ const NavigationPage = () => {
         setIsInternationalSearch(isInternational);
     };
 
-    // rendering:
+
+
+    //rendering:
     if (isCheckingToken) {
         return (
             <View>
@@ -598,7 +481,7 @@ const NavigationPage = () => {
                                     latitude: loc.lat,
                                     longitude: loc.lng,
                                 });
-                                saveSearchToHistory(data.description, loc);
+                                saveSearchToHistory(data.description, loc, setSearchHistory);
                                 Keyboard.dismiss();
                             }
                         }}
@@ -881,15 +764,15 @@ const NavigationPage = () => {
                     </View>
                     <View style={styles.reportGrid}>
                         {[
-                            { icon: '🚗', label: 'Traffic Jam', onPress: () => handleReport('Traffic Jam') },
-                            { icon: '👮', label: 'Police', onPress: () => handleReport('Police') },
-                            { icon: '💥', label: 'Accident', onPress: () => handleReport('Accident') },
-                            { icon: '⚠️', label: 'Hazard', onPress: () => handleReport('Hazard') },
-                            { icon: '📷', label: 'Camera', onPress: () => handleReport('Camera') },
-                            { icon: '💬', label: 'Map Chat', onPress: () => handleReport('Map Chat') },
-                            { icon: '❌', label: 'Map Issue', onPress: () => handleReport('Map Issue') },
-                            { icon: '⛽', label: 'Gas Prices', onPress: () => handleReport('Gas Prices') },
-                            { icon: '🚧', label: 'Closure', onPress: () => handleReport('Closure') },
+                            { icon: '🚗', label: 'Traffic Jam', onPress: () => handleReport('Traffic Jam', setShowReportPanel) },
+                            { icon: '👮', label: 'Police', onPress: () => handleReport('Police', setShowReportPanel) },
+                            { icon: '💥', label: 'Accident', onPress: () => handleReport('Accident', setShowReportPanel) },
+                            { icon: '⚠️', label: 'Hazard', onPress: () => handleReport('Hazard', setShowReportPanel) },
+                            { icon: '📷', label: 'Camera', onPress: () => handleReport('Camera', setShowReportPanel) },
+                            { icon: '💬', label: 'Map Chat', onPress: () => handleReport('Map Chat', setShowReportPanel) },
+                            { icon: '❌', label: 'Map Issue', onPress: () => handleReport('Map Issue', setShowReportPanel) },
+                            { icon: '⛽', label: 'Gas Prices', onPress: () => handleReport('Gas Prices', setShowReportPanel) },
+                            { icon: '🚧', label: 'Closure', onPress: () => handleReport('Closure', setShowReportPanel) },
                         ]
                             .map((item, index) => (
                                 <TouchableOpacity key={index} style={styles.reportItem} onPress={item.onPress}>
@@ -943,37 +826,6 @@ const NavigationPage = () => {
                 </View>
             )}
 
-            {/* Debug Information Panel */}
-            {showDebugInfo && (
-                <View style={styles.debugPanel}>
-                    <Text style={styles.debugTitle}>Navigation Debug Info</Text>
-                    <Text style={styles.debugText}>
-                        Current Step: {instructions[currentStepIndex]?.instruction}
-                    </Text>
-                    <Text style={styles.debugText}>
-                        Distance to Next Step: {nextStepDistance.toFixed(0)} meters
-                    </Text>
-                    <Text style={styles.debugText}>
-                        Total Steps: {instructions.length}
-                    </Text>
-                    <Text style={styles.debugText}>
-                        Current Step Index: {currentStepIndex}
-                    </Text>
-                    <Text style={[styles.debugText, isOffRoute && styles.offRouteText]}>
-                        Status: {isOffRoute ? 'OFF ROUTE' : 'ON ROUTE'}
-                    </Text>
-                </View>
-            )}
-
-            {/* Debug Toggle Button */}
-            <TouchableOpacity 
-                style={styles.debugButton}
-                onPress={() => setShowDebugInfo(!showDebugInfo)}
-            >
-                <Text style={styles.debugButtonText}>
-                    {showDebugInfo ? 'Hide Debug' : 'Show Debug'}
-                </Text>
-            </TouchableOpacity>
         </View>
     );
 };
