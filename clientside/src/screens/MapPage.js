@@ -20,8 +20,12 @@ import axios from 'axios';
 import { URL } from '@env';
 import LogoutButton from './LogoutButton';
 import { isVolunteer } from '../services/userTypeService';
-
-import { cancelRide, getManeuverIcon, handleRecenter,renderHistoryItem,handleMenuToggle, getManeuverText, calculateDistanceToRoute, handleReport, saveSearchToHistory, fetchSearchHistory} from '../services/driveHelpers';
+import MapPageMenu from './MapPageMenu.js';
+import StepsBar from './MapPageStepsBar.js';
+import SearchBar from './MapPageSearchaBar.js';
+import ReportPanel from './MapPageReportPanel.js';
+import VolunteerPanel from './MapPageVolounteerPanel.js';
+import { cancelRide, getManeuverIcon, handleRecenter, renderHistoryItem, handleMenuToggle, getManeuverText, calculateDistanceToRoute, handleReport, saveSearchToHistory, fetchSearchHistory } from '../services/driveHelpers';
 
 const googleMapsApiKey = MapsApiKey;
 
@@ -40,10 +44,10 @@ const NavigationPage = () => {
     const isLocationPermissionGranted = useRef(false); //location permission granted state
     const [refreshFlag, setRefreshFlag] = useState(false); //refresh flag to trigger permission re-check and re-render the page
     const [showReportPanel, setShowReportPanel] = useState(false);//events/reports handling pannel
-    const [routeCoordinates, setRouteCoordinates] = useState([]);    // [New] full route polyline coordinates
-    const [isRerouting, setIsRerouting] = useState(false);          // [New] rerouting in progress flag
-    const [forceReroute, setForceReroute] = useState(false);        // [New] toggle state to force rerouting
-    const lastRerouteTime = useRef(Date.now()); // [NEW] track last reroute time
+    const [routeCoordinates, setRouteCoordinates] = useState([]); //full route polyline coordinates
+    const [isRerouting, setIsRerouting] = useState(false); //rerouting in progress flag
+    const [forceReroute, setForceReroute] = useState(false); //toggle state to force rerouting
+    const lastRerouteTime = useRef(Date.now()); //track last reroute time
     const [searchHistory, setSearchHistory] = useState([]);
     const [showHistory, setShowHistory] = useState(false);
     const [isVolunteerUser, setIsVolunteerUser] = useState(false);
@@ -62,8 +66,8 @@ const NavigationPage = () => {
     };
 
 
-//opening menu function + animation
-const handleMenu = () => {
+    //opening menu function + animation
+    const handleMenu = () => {
         handleMenuToggle(isMenuVisible, slideAnim, setIsMenuVisible);
     };
 
@@ -161,7 +165,7 @@ const handleMenu = () => {
                     setInstructions(steps);
                     setCurrentStepIndex(0);
 
-                    // Log detailed route information
+                    //log detailed route information
                     console.log('Route Details:', {
                         totalDistance: route.legs[0].distance.text,
                         totalDuration: route.legs[0].duration.text,
@@ -178,11 +182,11 @@ const handleMenu = () => {
             }
         };
         fetchDirections();
-    }, [destination, forceReroute]); // [Modified] include forceReroute to allow re-fetch
+    }, [destination, forceReroute]); //include forceReroute to allow re-fetch
 
     useEffect(() => {
         if (!destination) {
-            // [New] Clear route data when destination is removed (cancel navigation)
+            //clear route data when destination is removed (cancel navigation)
             setRouteCoordinates([]);
             setIsRerouting(false);
         }
@@ -191,9 +195,9 @@ const handleMenu = () => {
     //track user progress and handle rerouting
     useEffect(() => {
         if (!origin || !instructions.length) return;
-        
+
         let subscription = null;
-        
+
         const setupLocationTracking = async () => {
             try {
                 subscription = await Location.watchPositionAsync({
@@ -208,23 +212,23 @@ const handleMenu = () => {
                     const step = instructions[currentStepIndex];
                     setOrigin(currLoc);
 
-                    // Calculate distance to next step in meters
+                    //calculate distance to next step in meters
                     const dLat = (step.endLocation.lat - currLoc.latitude) * 111000;
                     const dLon = (step.endLocation.lng - currLoc.longitude) * 111000 * Math.cos(currLoc.latitude * Math.PI / 180);
                     const distanceToNextStep = Math.sqrt(dLat * dLat + dLon * dLon);
 
-                    // Only check for off-route if we're not very close to the next step
+                    //only check for off-route if we're not very close to the next step
                     if (distanceToNextStep > 30) {
                         const offRouteByStep = distanceToNextStep > 150; // Increased threshold
                         let offRouteByRoute = false;
-                        
+
                         if (routeCoordinates.length) {
                             const distanceFromRoute = calculateDistanceToRoute(currLoc, routeCoordinates);
                             offRouteByRoute = distanceFromRoute > 100; // Increased threshold
                         }
 
                         const now = Date.now();
-                        // Only reroute if we're significantly off route and haven't rerouted recently
+                        //only reroute if we're significantly off route and haven't rerouted recently
                         if ((offRouteByStep || offRouteByRoute) && !isRerouting && now - lastRerouteTime.current > 30000) { // Increased cooldown to 30 seconds
                             console.log('User off route. Recalculating...');
                             Speech.speak('Recalculating...');
@@ -234,7 +238,7 @@ const handleMenu = () => {
                         }
                     }
 
-                    // Move to next step if close enough
+                    //move to next step if close enough
                     if (distanceToNextStep < 30 && currentStepIndex < instructions.length - 1) {
                         const nextStep = instructions[currentStepIndex + 1];
                         Speech.speak(getManeuverText(nextStep.maneuver, nextStep.instruction));
@@ -306,7 +310,7 @@ const handleMenu = () => {
         }
     };
 
-    // Add this function to check if user is off route
+    //add this function to check if user is off route
     const checkRouteDeviation = async () => {
         if (!origin || !routeCoordinates.length) return;
 
@@ -316,18 +320,18 @@ const handleMenu = () => {
                 { latitude: coords.latitude, longitude: coords.longitude },
                 routeCoordinates
             );
-            
-            // If more than 50 meters from route, consider it a wrong turn
+
+            //if more than 50 meters from route, consider it a wrong turn
             const isDeviated = distance > 50;
             setIsOffRoute(isDeviated);
-            
+
             if (isDeviated) {
                 Alert.alert(
                     "Wrong Turn Detected",
                     "You have deviated from the route. Recalculating...",
                     [{ text: "OK" }]
                 );
-                // Trigger rerouting
+                //trigger rerouting
                 setForceReroute(true);
             }
         } catch (error) {
@@ -346,72 +350,27 @@ const handleMenu = () => {
         return () => clearInterval(interval);
     }, [instructions, routeCoordinates]);
 
-    //modify the fetchDirections function to include more debug info
-    const fetchDirections = async () => {
-        try {
-            if (!origin || !destination) return;
 
-            const response = await fetch(
-                `https://maps.googleapis.com/maps/api/directions/json?origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}&key=${googleMapsApiKey}`
-            );
-            const data = await response.json();
-
-            if (data.routes.length > 0) {
-                const route = data.routes[0];
-                const points = polyline.decode(route.overview_polyline.points);
-                const routeCoords = points.map(point => ({
-                    latitude: point[0],
-                    longitude: point[1]
-                }));
-                setRouteCoordinates(routeCoords);
-
-                const steps = route.legs[0].steps.map(step => ({
-                    distance: step.distance.value,
-                    duration: step.duration.value,
-                    instruction: step.html_instructions.replace(/<[^>]*>/g, ''),
-                    maneuver: step.maneuver,
-                    startLocation: step.start_location,
-                    endLocation: step.end_location
-                }));
-                setInstructions(steps);
-                setCurrentStepIndex(0);
-
-                //log detailed route information
-                console.log('Route Details:', {
-                    totalDistance: route.legs[0].distance.text,
-                    totalDuration: route.legs[0].duration.text,
-                    numberOfSteps: steps.length,
-                    steps: steps.map(step => ({
-                        instruction: step.instruction,
-                        distance: step.distance,
-                        maneuver: step.maneuver
-                    }))
-                });
-            }
-        } catch (error) {
-            console.error('Error fetching directions:', error);
-        }
-    };
 
     //add this function to calculate ETA
     const calculateETA = (steps, currentIndex) => {
         if (!steps || steps.length === 0) return null;
-        
+
         //sum up remaining durations from current step onwards
         const totalSeconds = steps.slice(currentIndex).reduce((sum, step) => sum + step.duration, 0);
-        
+
         //calculate arrival time
         const now = new Date();
         const arrivalTime = new Date(now.getTime() + totalSeconds * 1000);
-        
+
         //format as HH:MM
         const formattedTime = arrivalTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        
+
         //calculate remaining time in hours and minutes
         const totalMinutes = Math.ceil(totalSeconds / 60);
         const hours = Math.floor(totalMinutes / 60);
         const minutes = totalMinutes % 60;
-        
+
         let remainingTimeText = '';
         if (hours > 0) {
             remainingTimeText = `${hours} hour${hours > 1 ? 's' : ''}`;
@@ -421,7 +380,7 @@ const handleMenu = () => {
         } else {
             remainingTimeText = `${minutes} min`;
         }
-        
+
         return {
             arrivalTime: formattedTime,
             remainingTime: remainingTimeText
@@ -439,18 +398,17 @@ const handleMenu = () => {
         setSearchQuery(text);
         //check if the text contains a country name or major international city
         const internationalKeywords = [
-            'egypt', 'cairo', 'usa', 'new york', 'london', 'paris', 
+            'egypt', 'cairo', 'usa', 'new york', 'london', 'paris',
             'rome', 'berlin', 'madrid', 'tokyo', 'dubai', 'country'
         ];
-        const isInternational = internationalKeywords.some(keyword => 
+        const isInternational = internationalKeywords.some(keyword =>
             text.toLowerCase().includes(keyword)
         );
         setIsInternationalSearch(isInternational);
     };
 
 
-
-    //rendering:
+    // Conditional rendering: show loading screen
     if (isCheckingToken) {
         return (
             <View>
@@ -458,6 +416,8 @@ const handleMenu = () => {
             </View>
         );
     }
+
+    // Conditional rendering: block app if location permission is not granted
     if (!isLocationPermissionGranted.current) {
         return (
             <View>
@@ -465,134 +425,28 @@ const handleMenu = () => {
             </View>
         );
     }
+
     return (
         <View style={styles.container}>
+            {/* Logout Button */}
             <LogoutButton />
-            {/* Google Search Input */}
-            {!isMenuVisible && (
-                <View style={StyleSheet.absoluteFill}>
-                    <GooglePlacesAutocomplete
-                        placeholder="Search for a destination"
-                        fetchDetails
-                        onPress={(data, details = null) => {
-                            if (details) {
-                                const loc = details.geometry.location;
-                                setDestination({
-                                    latitude: loc.lat,
-                                    longitude: loc.lng,
-                                });
-                                saveSearchToHistory(data.description, loc, setSearchHistory);
-                                Keyboard.dismiss();
-                            }
-                        }}
-                        query={{
-                            key: googleMapsApiKey,
-                            language: 'en',
-                            location: '31.7683,35.2137',
-                            radius: 100000,
-                            components: isInternationalSearch ? undefined : 'country:il',
-                            types: ['address', 'establishment', 'geocode'],
-                        }}
-                        styles={{
-                            container: styles.searchContainer,
-                            textInput: styles.searchInput,
-                            listView: styles.searchList,
-                        }}
-                        predefinedPlaces={searchHistory.slice(0, 6).map(renderHistoryItem)}
-                        renderRow={(data, index) => {
-                            const isHistoryItem = searchHistory.some(
-                                item => item.searchQuery === data.description
-                            );
-                            return (
-                                <View style={[
-                                    styles.suggestionRow,
-                                    isHistoryItem && styles.historySuggestionRow
-                                ]}>
-                                    {isHistoryItem && (
-                                        <MaterialIcons 
-                                            name="history" 
-                                            size={20} 
-                                            color="#666" 
-                                            style={styles.historyIcon}
-                                        />
-                                    )}
-                                    <Text style={[
-                                        styles.suggestionText,
-                                        isHistoryItem && styles.historySuggestionText
-                                    ]}>
-                                        {data.description}
-                                    </Text>
-                                </View>
-                            );
-                        }}
-                        listViewDisplayed="auto"
-                        minLength={3}
-                        enablePoweredByContainer={false}
-                        debounce={200}
-                        filterReverseGeocodingByTypes={['locality', 'administrative_area_level_3']}
-                        renderDescription={(row) => row.description}
-                        onFail={(error) => console.error(error)}
-                        requestUrl={{
-                            url: 'https://maps.googleapis.com/maps/api',
-                            useOnPlatform: 'web',
-                        }}
-                        nearbyPlacesAPI="GooglePlacesSearch"
-                        GooglePlacesSearchQuery={{
-                            rankby: 'distance',
-                        }}
-                        GooglePlacesDetailsQuery={{
-                            fields: 'formatted_address,geometry',
-                        }}
-                        maxResults={6}
-                        textInputProps={{
-                            onChangeText: handleSearchTextChange
-                        }}
-                    />
-                    <TouchableOpacity 
-                        style={styles.historyButton}
-                        onPress={() => {
-                            setShowHistory(!showHistory);
-                            if (!showHistory) {
-                                fetchSearchHistory();
-                            }
-                        }}
-                    >
-                        <MaterialIcons name="history" size={24} color="black" />
-                    </TouchableOpacity>
-                </View>
-            )}
 
-            {/* Search History Panel */}
-            {showHistory && !isMenuVisible && (
-                <View style={styles.historyPanel}>
-                    <View style={styles.historyHeader}>
-                        <Text style={styles.historyTitle}>Recent Searches</Text>
-                        <TouchableOpacity onPress={() => setShowHistory(false)}>
-                            <Text style={styles.closeHistory}>✕</Text>
-                        </TouchableOpacity>
-                    </View>
-                    <ScrollView style={styles.historyList}>
-                        {searchHistory.map((item, index) => (
-                            <TouchableOpacity
-                                key={index}
-                                style={styles.historyItem}
-                                onPress={() => {
-                                    setDestination({
-                                        latitude: item.location.latitude,
-                                        longitude: item.location.longitude,
-                                    });
-                                    setShowHistory(false);
-                                }}
-                            >
-                                <MaterialIcons name="history" size={20} color="gray" />
-                                <Text style={styles.historyText}>{item.searchQuery}</Text>
-                            </TouchableOpacity>
-                        ))}
-                    </ScrollView>
-                </View>
-            )}
+            {/* 🔍 Search Input + History */}
+            <SearchBar
+                handleSearchTextChange={handleSearchTextChange}
+                isMenuVisible={isMenuVisible}
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                searchHistory={searchHistory}
+                setSearchHistory={setSearchHistory}
+                setDestination={setDestination}
+                showHistory={showHistory}
+                setShowHistory={setShowHistory}
+                fetchSearchHistory={fetchSearchHistory}
+                isInternationalSearch={isInternationalSearch}
+            />
 
-            {/* Map View */}
+            {/* 🗺️ Map View */}
             {mapRegion && (
                 <MapView
                     ref={mapRef}
@@ -603,7 +457,10 @@ const handleMenu = () => {
                     showsMyLocationButton={false}
                     showsCompass={true}
                 >
+                    {/* 📍 Destination Marker */}
                     {destination && <Marker coordinate={destination} title="Destination" />}
+
+                    {/* ➡️ Route Directions */}
                     {origin && destination && (
                         <MapViewDirections
                             origin={origin}
@@ -611,7 +468,7 @@ const handleMenu = () => {
                             apikey={googleMapsApiKey}
                             strokeWidth={4}
                             strokeColor="blue"
-                            onReady={result => {
+                            onReady={(result) => {
                                 mapRef.current?.fitToCoordinates(result.coordinates, {
                                     edgePadding: { top: 80, right: 50, bottom: 50, left: 50 },
                                 });
@@ -621,132 +478,50 @@ const handleMenu = () => {
                 </MapView>
             )}
 
-            {/* Menu Button */}
+            {/* ☰ Menu Button */}
             {!isMenuVisible && (
                 <TouchableOpacity style={styles.menu} onPress={handleMenu}>
                     <Entypo name="menu" size={24} color="black" />
                 </TouchableOpacity>
             )}
 
-            {/* Sliding Menu */}
-            <Animated.View
-                style={[
-                    styles.slidingMenu,
-                    { transform: [{ translateY: slideAnim }] },
-                ]}
-            >
-                {/* Close Button */}
-                <TouchableOpacity
-                    style={styles.closeButton}
-                    onPress={handleMenu}
-                >
-                    <Fontisto name="close" size={24} color="white" />
-                </TouchableOpacity>
+            {/* 📂 Slide-out Menu Panel */}
+            <MapPageMenu
+                slideAnim={slideAnim}
+                handleMenu={handleMenu}
+                navigation={navigation}
+                setDestination={setDestination}
+                setInstructions={setInstructions}
+                setCurrentStepIndex={setCurrentStepIndex}
+            />
 
-                {/* Profile Section */}
-                <View style={styles.profileSection}>
-                    <Ionicons name="person-circle-outline" size={50} color="white" />
-                    <View style={styles.profileText}>
-                        <Text style={styles.profileName}>Username</Text>
-                        <TouchableOpacity onPress={() => navigation.navigate('ProfilePage')}>
-                            <Text style={styles.viewProfileText}>View profile</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-
-                {/* Menu Items */}
-                <TouchableOpacity style={styles.menuItem}>
-                    <Ionicons name="car-outline" size={24} color="white" />
-                    <Text style={styles.menuItemText}>Plan a drive</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.menuItem}>
-                    <Ionicons name="chatbubble-ellipses-outline" size={24} color="white" />
-                    <Text style={styles.menuItemText}>Inbox</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.menuItem}>
-                    <Ionicons name="settings-outline" size={24} color="white" />
-                    <Text style={styles.menuItemText}>Settings</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.menuItem}>
-                    <Ionicons name="help-circle-outline" size={24} color="white" />
-                    <Text style={styles.menuItemText}>Help and feedback</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.menuItem} onPress={() => cancelRide(setDestination, setInstructions, setCurrentStepIndex, true)}>
-                    <Ionicons name="power-outline" size={24} color="white" />
-                    <Text style={styles.menuItemText}>Shut off</Text>
-                </TouchableOpacity>
-            </Animated.View>
-
+            {/* 📍 Recenter Button */}
             {!isMenuVisible && (
-                <TouchableOpacity style={styles.recenterButton} onPress={() => handleRecenter(setOrigin, setMapRegion)}>
+                <TouchableOpacity
+                    style={styles.recenterButton}
+                    onPress={() => handleRecenter(setOrigin, setMapRegion)}
+                >
                     <MaterialIcons name="gps-fixed" size={24} color="black" />
                 </TouchableOpacity>
             )}
 
-            {/* Voice Step Feedback */}
-            {instructions.length > 0 && !isMenuVisible && (
-                <View style={styles.instructionsContainer}>
-                    <TouchableOpacity 
-                        style={styles.instructionsHeader}
-                        onPress={() => setShowAllSteps(!showAllSteps)}
-                    >
-                        <View style={styles.etaContainer}>
-                            <Text style={styles.etaText}>
-                                Arrival: {eta?.arrivalTime} ({eta?.remainingTime})
-                            </Text>
-                        </View>
-                        <Text style={styles.heading}>Next Step:</Text>
-                        <View style={styles.stepRow}>
-                            {getManeuverIcon(instructions[currentStepIndex]?.maneuver)}
-                            <Text style={styles.stepText}>
-                                {getManeuverText(instructions[currentStepIndex]?.maneuver, instructions[currentStepIndex]?.instruction)} in {instructions[currentStepIndex]?.distance} meters
-                            </Text>
-                            {destination && !isMenuVisible && (
-                                <TouchableOpacity style={styles.cancelButton} onPress={() => cancelRide(setDestination, setInstructions, setCurrentStepIndex)}>
-                                    <MaterialIcons name="cancel" size={24} color="white" />
-                                </TouchableOpacity>
-                            )}
-                        </View>
-                    </TouchableOpacity>
-                    
-                    {showAllSteps && (
-                        <ScrollView 
-                            style={styles.allStepsContainer}
-                            showsVerticalScrollIndicator={true}
-                            nestedScrollEnabled={true}
-                        >
-                            {instructions.map((step, index) => (
-                                <View 
-                                    key={index} 
-                                    style={[
-                                        styles.stepItem,
-                                        index === currentStepIndex && styles.currentStepItem
-                                    ]}
-                                >
-                                    <View style={styles.stepIconContainer}>
-                                        {getManeuverIcon(step.maneuver)}
-                                    </View>
-                                    <View style={styles.stepTextContainer}>
-                                        <Text style={styles.stepItemText}>
-                                            {getManeuverText(step.maneuver, step.instruction)} in {step.distance} meters
-                                        </Text>
-                                    </View>
-                                </View>
-                            ))}
-                        </ScrollView>
-                    )}
-                </View>
-            )}
+            {/* 🧭 Navigation Steps Bar */}
+            <StepsBar
+                instructions={instructions}
+                currentStepIndex={currentStepIndex}
+                eta={eta}
+                showAllSteps={showAllSteps}
+                setShowAllSteps={setShowAllSteps}
+                destination={destination}
+                isMenuVisible={isMenuVisible}
+                setDestination={setDestination}
+                setInstructions={setInstructions}
+                setCurrentStepIndex={setCurrentStepIndex}
+            />
 
+            {/* ➕ Add Event Button */}
             {!isMenuVisible && (
-                <TouchableOpacity
-                    onPress={handleAddEvent}
-                    style={styles.addEventButton}
-                >
+                <TouchableOpacity onPress={handleAddEvent} style={styles.addEventButton}>
                     <Image
                         source={require('../images/add_new_event_to_map.webp')}
                         style={styles.addEventIcon}
@@ -754,46 +529,31 @@ const handleMenu = () => {
                 </TouchableOpacity>
             )}
 
+            {/* 🚨 Report Panel */}
             {showReportPanel && (
-                <View style={styles.reportPanel}>
-                    <View style={styles.reportHeader}>
-                        <Text style={styles.reportTitle}>Report</Text>
-                        <TouchableOpacity onPress={() => setShowReportPanel(false)}>
-                            <Text style={styles.closeReport}>✕</Text>
-                        </TouchableOpacity>
-                    </View>
-                    <View style={styles.reportGrid}>
-                        {[
-                            { icon: '🚗', label: 'Traffic Jam', onPress: () => handleReport('Traffic Jam', setShowReportPanel) },
-                            { icon: '👮', label: 'Police', onPress: () => handleReport('Police', setShowReportPanel) },
-                            { icon: '💥', label: 'Accident', onPress: () => handleReport('Accident', setShowReportPanel) },
-                            { icon: '⚠️', label: 'Hazard', onPress: () => handleReport('Hazard', setShowReportPanel) },
-                            { icon: '📷', label: 'Camera', onPress: () => handleReport('Camera', setShowReportPanel) },
-                            { icon: '💬', label: 'Map Chat', onPress: () => handleReport('Map Chat', setShowReportPanel) },
-                            { icon: '❌', label: 'Map Issue', onPress: () => handleReport('Map Issue', setShowReportPanel) },
-                            { icon: '⛽', label: 'Gas Prices', onPress: () => handleReport('Gas Prices', setShowReportPanel) },
-                            { icon: '🚧', label: 'Closure', onPress: () => handleReport('Closure', setShowReportPanel) },
-                        ]
-                            .map((item, index) => (
-                                <TouchableOpacity key={index} style={styles.reportItem} onPress={item.onPress}>
-                                    <Text style={styles.reportIcon}>{item.icon}</Text>
-                                    <Text style={styles.reportLabel}>{item.label}</Text>
-                                </TouchableOpacity>
-                            ))}
-                    </View>
-                </View>
+                <ReportPanel setShowReportPanel={setShowReportPanel} />
             )}
 
-            {/* [New] Rerouting Indicator UI */}
+            {/* 🔄 Rerouting Indicator */}
             {isRerouting && (
-                <View style={{ position: 'absolute', top: 80, alignSelf: 'center', backgroundColor: 'rgba(255,255,255,0.8)', padding: 8, borderRadius: 5, flexDirection: 'row', alignItems: 'center' }}>
+                <View style={{
+                    position: 'absolute',
+                    top: 80,
+                    alignSelf: 'center',
+                    backgroundColor: 'rgba(255,255,255,0.8)',
+                    padding: 8,
+                    borderRadius: 5,
+                    flexDirection: 'row',
+                    alignItems: 'center'
+                }}>
                     <ActivityIndicator size="small" color="#000" />
                     <Text style={{ marginLeft: 5, fontWeight: 'bold' }}>Recalculating...</Text>
                 </View>
             )}
 
+            {/* 🆘 Volunteer Button */}
             {isVolunteerUser && (
-                <TouchableOpacity 
+                <TouchableOpacity
                     style={styles.volunteerButton}
                     onPress={handleVolunteerPanel}
                 >
@@ -801,33 +561,16 @@ const handleMenu = () => {
                 </TouchableOpacity>
             )}
 
+            {/* 👥 Volunteer Dashboard Panel */}
             {showVolunteerPanel && (
-                <View style={styles.volunteerPanel}>
-                    <Text style={styles.volunteerTitle}>Volunteer Dashboard</Text>
-                    <ScrollView style={styles.volunteerReportsList}>
-                        {volunteerReports.map((report) => (
-                            <View key={report._id} style={styles.volunteerReportItem}>
-                                <Text style={styles.volunteerReportType}>{report.type}</Text>
-                                <Text style={styles.volunteerReportLocation}>
-                                    Location: {report.location.latitude.toFixed(4)}, {report.location.longitude.toFixed(4)}
-                                </Text>
-                                <Text style={styles.volunteerReportTime}>
-                                    Reported: {new Date(report.createdAt).toLocaleString()}
-                                </Text>
-                                <TouchableOpacity 
-                                    style={styles.resolveButton}
-                                    onPress={() => handleResolveReport(report._id)}
-                                >
-                                    <Text style={styles.resolveButtonText}>Mark as Resolved</Text>
-                                </TouchableOpacity>
-                            </View>
-                        ))}
-                    </ScrollView>
-                </View>
+                <VolunteerPanel
+                    volunteerReports={volunteerReports}
+                    handleResolveReport={handleResolveReport}
+                />
             )}
-
         </View>
     );
+
 };
 
 export default NavigationPage;
