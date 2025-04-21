@@ -5,7 +5,7 @@ import authenticateToken from '../middlewares/requireAuth.js';
 const router = express.Router();
 
 // Save a new search
-router.post('/', authenticateToken, async (req, res) => {
+router.post('/search-history', authenticateToken, async (req, res) => {
     try {
         const { searchQuery, location } = req.body;
         
@@ -36,7 +36,7 @@ router.post('/', authenticateToken, async (req, res) => {
 });
 
 // Get user's search history
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/search-history', authenticateToken, async (req, res) => {
     try {
         const searchHistory = await SearchHistory.find({ userId: req.user._id })
             .sort({ timestamp: -1 })

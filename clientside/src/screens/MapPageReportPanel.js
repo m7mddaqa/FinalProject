@@ -21,7 +21,7 @@ const ReportPanel = ({ setShowReportPanel }) => {
             <View style={styles.reportHeader}>
                 <Text style={styles.reportTitle}>Report</Text>
                 <TouchableOpacity onPress={() => setShowReportPanel(false)}>
-                    <Text style={styles.closeReport}>✕</Text>
+                    <Text style={styles.closeReportPanelButton}>✕</Text>
                 </TouchableOpacity>
             </View>
             <View style={styles.reportGrid}>

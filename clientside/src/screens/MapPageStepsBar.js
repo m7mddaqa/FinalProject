@@ -44,7 +44,7 @@ const StepsBar = ({
             <TouchableOpacity
               style={styles.cancelButton}
               onPress={() =>
-                cancelRide(setDestination, setInstructions, setCurrentStepIndex)
+                cancelRide(setDestination, setInstructions, setCurrentStepIndex, setShowAllSteps)
               }
             >
               <MaterialIcons name="cancel" size={24} color="white" />

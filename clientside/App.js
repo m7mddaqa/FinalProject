@@ -5,6 +5,7 @@ import { View, Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { URL } from '@env';
+import { ThemeProvider } from './src/context/ThemeContext';
 
 import Home from './src/screens/Home';
 import LoginPage from './src/screens/LoginPage';
@@ -75,8 +76,10 @@ function MyStack() {
 
 export default function App() {
   return (
-    <NavigationContainer>
-      <MyStack />
-    </NavigationContainer>
+    <ThemeProvider>
+      <NavigationContainer>
+        <MyStack />
+      </NavigationContainer>
+    </ThemeProvider>
   );
 }

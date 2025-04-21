@@ -3,11 +3,18 @@ import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { styles } from '../styles/MapPageStyle';
 
-const VolunteerPanel = ({ volunteerReports, handleResolveReport }) => {
+const VolunteerPanel = ({setShowVolunteerPanel, volunteerReports, handleResolveReport, isMenuVisible }) => {
+    if (isMenuVisible) return null;
     return (
         <View style={styles.volunteerPanel}>
             <Text style={styles.volunteerTitle}>Volunteer Dashboard</Text>
+            <TouchableOpacity onPress={() => setShowVolunteerPanel(false)}>
+                <Text style={styles.closeVolunteerPanelButton}>✕</Text>
+            </TouchableOpacity>
             <ScrollView style={styles.volunteerReportsList}>
+                {volunteerReports.length === 0 && (
+                    <Text style={styles.noReportsText}>No reports available</Text>
+                )}
                 {volunteerReports.map((report) => (
                     <View key={report._id} style={styles.volunteerReportItem}>
                         <Text style={styles.volunteerReportType}>{report.type}</Text>

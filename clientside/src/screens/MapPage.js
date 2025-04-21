@@ -48,16 +48,22 @@ const NavigationPage = () => {
     const [isRerouting, setIsRerouting] = useState(false); //rerouting in progress flag
     const [forceReroute, setForceReroute] = useState(false); //toggle state to force rerouting
     const lastRerouteTime = useRef(Date.now()); //track last reroute time
-    const [searchHistory, setSearchHistory] = useState([]);
-    const [showHistory, setShowHistory] = useState(false);
-    const [isVolunteerUser, setIsVolunteerUser] = useState(false);
-    const [showVolunteerPanel, setShowVolunteerPanel] = useState(false);
-    const [volunteerReports, setVolunteerReports] = useState([]);
-    const [isOffRoute, setIsOffRoute] = useState(false);
-    const [showAllSteps, setShowAllSteps] = useState(false);
-    const [eta, setEta] = useState(null);
-    const [searchQuery, setSearchQuery] = useState('');
+    const [searchHistory, setSearchHistory] = useState([]); //fetches and saves search history
+    const [showHistory, setShowHistory] = useState(false); //boolean value to show/hide search history
+    const [isVolunteerUser, setIsVolunteerUser] = useState(false); //check if the user is a volunteer
+    const [showVolunteerPanel, setShowVolunteerPanel] = useState(false); //volunteer dashboard panel + checks if the panel is opened
+    const [volunteerReports, setVolunteerReports] = useState([]); //fetches and saves reports
+    const [isOffRoute, setIsOffRoute] = useState(false); //check if the user is off route
+    const [showAllSteps, setShowAllSteps] = useState(false); //boolean value to show/hide all steps for user's trip
+    const [eta, setEta] = useState(null); //ETA calculation
+    const [searchQuery, setSearchQuery] = useState(''); //search query for autocomplete
     const [isInternationalSearch, setIsInternationalSearch] = useState(false);
+    const [isStepsBar, setIsStepsBar] = useState(false); //boolean value to check whether steps bar is opened or not
+
+    // Add useEffect to update isStepsBar state
+    useEffect(() => {
+        setIsStepsBar(instructions.length > 0 || showAllSteps);
+    }, [instructions, showAllSteps]);
 
     //functions:
 
@@ -70,7 +76,7 @@ const NavigationPage = () => {
     const handleMenu = () => {
         handleMenuToggle(isMenuVisible, slideAnim, setIsMenuVisible);
     };
-
+    
 
 
     //useEffects:
@@ -278,7 +284,7 @@ const NavigationPage = () => {
             console.log('Attempting to fetch reports...');
             const token = await AsyncStorage.getItem('token');
             console.log('Token exists:', !!token);
-            const response = await axios.get(`${URL}/api/events`, {
+            const response = await axios.get(`${URL}/events`, {
                 headers: {
                     Authorization: `Bearer ${token}`
                 }
@@ -297,7 +303,7 @@ const NavigationPage = () => {
     const handleResolveReport = async (reportId) => {
         try {
             const token = await AsyncStorage.getItem('token');
-            await axios.put(`${URL}/api/events/${reportId}/resolve`, {}, {
+            await axios.put(`${URL}/events/${reportId}/resolve`, {}, {
                 headers: {
                     Authorization: `Bearer ${token}`
                 }
@@ -521,7 +527,7 @@ const NavigationPage = () => {
 
             {/* ➕ Add Event Button */}
             {!isMenuVisible && (
-                <TouchableOpacity onPress={handleAddEvent} style={styles.addEventButton}>
+                <TouchableOpacity onPress={handleAddEvent} style={!isStepsBar ? styles.addEventButton : (showAllSteps ? styles.addEventButtonFullStepsBar : styles.addEventButtonStepsBar)}>
                     <Image
                         source={require('../images/add_new_event_to_map.webp')}
                         style={styles.addEventIcon}
@@ -530,7 +536,7 @@ const NavigationPage = () => {
             )}
 
             {/* 🚨 Report Panel */}
-            {showReportPanel && (
+            {(showReportPanel && !isMenuVisible) && (
                 <ReportPanel setShowReportPanel={setShowReportPanel} />
             )}
 
@@ -551,21 +557,28 @@ const NavigationPage = () => {
                 </View>
             )}
 
+
+
             {/* 🆘 Volunteer Button */}
-            {isVolunteerUser && (
+            {isVolunteerUser && !isMenuVisible && !showVolunteerPanel && (
                 <TouchableOpacity
-                    style={styles.volunteerButton}
+                    style={[
+                        !isStepsBar ? styles.volunteerButton : (showAllSteps ? styles.volunteerButtonFullStepsBar : styles.volunteerButtonStepsBar),
+                        { backgroundColor: '#E53935' }
+                    ]}
                     onPress={handleVolunteerPanel}
                 >
-                    <MaterialCommunityIcons name="account-group" size={24} color="white" />
+                    <MaterialCommunityIcons name="medical-bag" size={40} color="white" style={{ marginLeft:-5 , marginTop: -8}}/>
                 </TouchableOpacity>
             )}
 
             {/* 👥 Volunteer Dashboard Panel */}
             {showVolunteerPanel && (
                 <VolunteerPanel
+                    setShowVolunteerPanel={setShowVolunteerPanel}
                     volunteerReports={volunteerReports}
                     handleResolveReport={handleResolveReport}
+                    isMenuVisible={isMenuVisible}
                 />
             )}
         </View>

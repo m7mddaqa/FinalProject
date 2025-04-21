@@ -8,13 +8,14 @@ import crypto from 'crypto';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+
 import requireAuth from './middlewares/requireAuth.js';
 import signupRouter from './Routers/signupRouter.js';
 import loginRouter from './Routers/loginRouter.js';
 import testingRoute from './Routers/testingRoute.js';
-import eventsRoute from './Routers/events.js';
-import searchHistoryRouter from './Routers/searchHistory.js';
-import userRouter from './Routers/user.js';
+import searchHistoryRouter from './Routers/searchHistoryRouter.js';
+import userRouter from './Routers/userRouter.js';
+import eventsRouter from './Routers/eventsRouter.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -32,7 +33,7 @@ mongoose.connect(MONGODB_URI)
     .then(() => console.log('MongoDB connected...'))
     .catch(err => console.log(err));
 
-//used it one time to generate token key: (Now saved in .env)
+//JWT SECRET: used it one time to generate token key: (Now saved in .env)
 //console.log(crypto.randomBytes(64).toString('hex'));
 
 
@@ -43,13 +44,10 @@ app.get('/', (req, res) => {
 app.use(signupRouter);
 app.use(loginRouter);
 app.use(testingRoute);
-app.use('/api/events', eventsRoute);
-app.use('/api/search-history', searchHistoryRouter);
-app.use('/api/user', userRouter);
+app.use(eventsRouter);
+app.use(searchHistoryRouter);
+app.use(userRouter);
 
-app.get('/login', (req,res) => {
-    res.send("Login page")
-});
 
 app.listen(3001, '0.0.0.0', () => {
     console.log('Server is running on http://10.0.0.16:3001');

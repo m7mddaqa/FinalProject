@@ -8,10 +8,11 @@ import axios from 'axios';
 import { URL } from '@env';
 
 //cancel the ride and reset the state
-export const cancelRide = (setDestination, setInstructions, setCurrentStepIndex, exit = false) => {
+export const cancelRide = (setDestination, setInstructions, setCurrentStepIndex,setShowAllSteps, exit = false) => {
     setDestination(null);
     setInstructions([]);
     setCurrentStepIndex(0);
+    setShowAllSteps(false);
     Speech.speak("Navigation cancelled");
     if (exit) {
         BackHandler.exitApp();
@@ -185,7 +186,7 @@ export const handleReport = async (type, setShowReportPanel) => {
         const { coords } = await Location.getCurrentPositionAsync({});
         const token = await AsyncStorage.getItem('token'); //get token from storage
 
-        await axios.post(`${URL}/api/events`, {
+        await axios.post(`${URL}/events`, {
             type,
             location: {
                 latitude: coords.latitude,
@@ -214,7 +215,7 @@ export const saveSearchToHistory = async (query, location, setSearchHistory) => 
         }
 
         const response = await axios.post(
-            `${URL}/api/search-history`,
+            `${URL}/search-history`,
             {
                 searchQuery: query,
                 location: {
@@ -266,7 +267,7 @@ export const fetchSearchHistory = async () => {
         }
 
         const response = await axios.get(
-            `${URL}/api/search-history`,
+            `${URL}/search-history`,
             {
                 headers: {
                     'Authorization': `Bearer ${token}`,

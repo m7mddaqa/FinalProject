@@ -1,10 +1,12 @@
 import express from 'express';
+const router = express.Router();
+
+
 import Event from '../Schemas/Event.js';
 import jwt from 'jsonwebtoken';
 
-const router = express.Router();
 
-router.post('/', async (req, res) => {
+router.post('/events', async (req, res) => {
   console.log('[INFO] /api/events POST route hit');
 
   // 1. Check token
@@ -49,15 +51,43 @@ router.post('/', async (req, res) => {
 });
 
 
-
-
-router.get('/', async (req, res) => {
+//fetch events
+router.get('/events', async (req, res) => {
     try {
-      const events = await Event.find().sort({ createdAt: -1 }); // latest first
+      const events = await Event.find().sort({ createdAt: -1 }); //latest event shows up first
       res.json(events);
     } catch (err) {
       console.error('[ERROR] Failed to fetch events:', err.message);
       res.status(500).json({ error: 'Failed to fetch events' });
     }
   });
+
+  router.put('/events/:id/resolve', async (req, res) => {
+    try {
+      const token = req.headers.authorization?.split(' ')[1];
+      if (!token) {
+        return res.status(401).json({ error: 'Missing authorization token' });
+      }
+  
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const userId = decoded.id;
+  
+      const { id } = req.params;
+      const event = await Event.findById(id);
+  
+      if (!event) {
+        return res.status(404).json({ error: 'Event not found' });
+      }
+  
+      //temporarily, change later
+      event.resolved = true;
+      await event.save();
+  
+      res.json({ message: 'Event marked as resolved' });
+    } catch (err) {
+      console.error('[ERROR] Failed to resolve event:', err.message);
+      res.status(500).json({ error: 'Failed to resolve event' });
+    }
+  });
+  
 export default router;

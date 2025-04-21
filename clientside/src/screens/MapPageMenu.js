@@ -1,9 +1,9 @@
 import React from 'react';
 import { Animated, View, Text, TouchableOpacity } from 'react-native';
-import Fontisto from '@expo/vector-icons/Fontisto';
-import Ionicons from '@expo/vector-icons/Ionicons';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { styles } from '../styles/MapPageStyle';
 import { cancelRide } from '../services/driveHelpers';
+import { useTheme } from '../context/ThemeContext';
 
 const MapPageMenu = ({
     slideAnim,
@@ -13,10 +13,20 @@ const MapPageMenu = ({
     setInstructions,
     setCurrentStepIndex,
 }) => {
+    const { isDarkMode, toggleTheme } = useTheme();
+
+    const themeStyles = {
+        menu: isDarkMode ? styles.slidingMenuDark : styles.slidingMenu,
+        text: isDarkMode ? styles.menuItemTextDark : styles.menuItemText,
+        icon: isDarkMode ? '#FFFFFF' : '#000000',
+        profileName: isDarkMode ? styles.profileNameDark : styles.profileName,
+        menuItem: isDarkMode ? styles.menuItemDark : styles.menuItem,
+    };
+
     return (
         <Animated.View
             style={[
-                styles.slidingMenu,
+                themeStyles.menu,
                 { transform: [{ translateY: slideAnim }] },
             ]}
         >
@@ -25,14 +35,14 @@ const MapPageMenu = ({
                 style={styles.closeButton}
                 onPress={handleMenu}
             >
-                <Fontisto name="close" size={24} color="white" />
+                <MaterialIcons name="close" size={24} color={themeStyles.icon} />
             </TouchableOpacity>
 
             {/* Profile Section */}
             <View style={styles.profileSection}>
-                <Ionicons name="person-circle-outline" size={50} color="white" />
+                <MaterialIcons name="person" size={50} color="#067ef5" />
                 <View style={styles.profileText}>
-                    <Text style={styles.profileName}>Username</Text>
+                    <Text style={themeStyles.profileName}>mohamad dacca</Text>
                     <TouchableOpacity onPress={() => navigation.navigate('ProfilePage')}>
                         <Text style={styles.viewProfileText}>View profile</Text>
                     </TouchableOpacity>
@@ -40,34 +50,45 @@ const MapPageMenu = ({
             </View>
 
             {/* Menu Items */}
-            <TouchableOpacity style={styles.menuItem}>
-                <Ionicons name="car-outline" size={24} color="white" />
-                <Text style={styles.menuItemText}>Plan a drive</Text>
+            <TouchableOpacity style={themeStyles.menuItem}>
+                <MaterialIcons name="schedule" size={24} color={themeStyles.icon} />
+                <Text style={themeStyles.text}>Plan a drive</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItem}>
-                <Ionicons name="chatbubble-ellipses-outline" size={24} color="white" />
-                <Text style={styles.menuItemText}>Inbox</Text>
+            <TouchableOpacity style={themeStyles.menuItem}>
+                <MaterialIcons name="chat" size={24} color={themeStyles.icon} />
+                <Text style={themeStyles.text}>Inbox</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItem}>
-                <Ionicons name="settings-outline" size={24} color="white" />
-                <Text style={styles.menuItemText}>Settings</Text>
+            <TouchableOpacity style={themeStyles.menuItem}>
+                <MaterialIcons name="settings" size={24} color={themeStyles.icon} />
+                <Text style={themeStyles.text}>Settings</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItem}>
-                <Ionicons name="help-circle-outline" size={24} color="white" />
-                <Text style={styles.menuItemText}>Help and feedback</Text>
+            <TouchableOpacity style={themeStyles.menuItem} onPress={toggleTheme}>
+                <MaterialIcons 
+                    name={isDarkMode ? "light-mode" : "dark-mode"} 
+                    size={24} 
+                    color={themeStyles.icon} 
+                />
+                <Text style={themeStyles.text}>
+                    {isDarkMode ? "Light mode" : "Dark mode"}
+                </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={themeStyles.menuItem}>
+                <MaterialIcons name="help" size={24} color={themeStyles.icon} />
+                <Text style={themeStyles.text}>Help and feedback</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-                style={styles.menuItem}
+                style={themeStyles.menuItem}
                 onPress={() =>
                     cancelRide(setDestination, setInstructions, setCurrentStepIndex, true)
                 }
             >
-                <Ionicons name="power-outline" size={24} color="white" />
-                <Text style={styles.menuItemText}>Shut off</Text>
+                <MaterialIcons name="power-settings-new" size={24} color={themeStyles.icon} />
+                <Text style={themeStyles.text}>Shut off</Text>
             </TouchableOpacity>
         </Animated.View>
     );

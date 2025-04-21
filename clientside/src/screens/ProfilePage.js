@@ -6,7 +6,7 @@ import { isLoggedIn } from '../services/getToken';
 import * as ImagePicker from 'expo-image-picker';
 import axios from 'axios';
 
-const API_URL = process.env.URL || 'http://localhost:3000';
+const API_URL = process.env.URL;
 console.log('API URL:', API_URL);
 
 const ProfilePage = ({ navigation }) => {
@@ -29,8 +29,8 @@ const ProfilePage = ({ navigation }) => {
                 console.log('Token:', tokenData.token);
                 console.log('User ID:', tokenData.userId);
 
-                // Fetch user profile data
-                const response = await axios.get(`${API_URL}/api/user/profile/${tokenData.userId}`, {
+                //fetch user profile data
+                const response = await axios.get(`${API_URL}/profile/${tokenData.userId}`, {
                     headers: { Authorization: `Bearer ${tokenData.token}` }
                 });
                 console.log('Profile data:', response.data);
@@ -106,7 +106,7 @@ const ProfilePage = ({ navigation }) => {
             });
             formData.append('userId', userData._id);
 
-            const response = await axios.post(`${API_URL}/api/user/profile/image`, formData, {
+            const response = await axios.post(`${API_URL}/profile/image`, formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data',
                     Authorization: `Bearer ${token}`
@@ -136,9 +136,9 @@ const ProfilePage = ({ navigation }) => {
     const getImageUrl = (path) => {
         if (!path) return null;
         if (path.startsWith('http')) return path;
-        // Replace backslashes with forward slashes and remove any double slashes
+        //replace backslashes with forward slashes and remove any double slashes
         const cleanPath = path.replace(/\\/g, '/').replace(/\/+/g, '/');
-        // Remove 'uploads/' from the path since it's already in the API_URL
+        //remove 'uploads/' from the path since it's already in the API_URL
         const filename = cleanPath.replace('uploads/', '');
         return `${API_URL}/uploads/${filename}`;
     };
