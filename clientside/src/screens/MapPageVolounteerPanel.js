@@ -2,8 +2,8 @@ import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { styles } from '../styles/MapPageStyle';
 
-const VolunteerPanel = ({setShowVolunteerPanel, volunteerReports, handleResolveReport, isMenuVisible }) => {
-    if (isMenuVisible) return null;
+const VolunteerPanel = ({setShowVolunteerPanel, volunteerReports, handleResolveReport, isMenuVisible, showAllSteps }) => {
+    if (isMenuVisible || showAllSteps) return null;
 
     // Sort reports by distance
     const sortedReports = [...volunteerReports].sort((a, b) => a.distance - b.distance);

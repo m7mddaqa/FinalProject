@@ -564,7 +564,7 @@ const NavigationPage = () => {
             />
 
             {/* ➕ Add Event Button */}
-            {!isMenuVisible && (
+            {!isMenuVisible && !showReportPanel && (
                 <TouchableOpacity onPress={handleAddEvent} style={!isStepsBar ? styles.addEventButton : (showAllSteps ? styles.addEventButtonFullStepsBar : styles.addEventButtonStepsBar)}>
                     <Image
                         source={require('../images/add_new_event_to_map.webp')}
@@ -576,8 +576,9 @@ const NavigationPage = () => {
             {/* 🚨 Report Panel */}
             {(showReportPanel && !isMenuVisible) && (
                 <ReportPanel
-                setShowReportPanel={setShowReportPanel}
-                setVolunteerReports={setVolunteerReports}
+                    setShowReportPanel={setShowReportPanel}
+                    setVolunteerReports={setVolunteerReports}
+                    showAllSteps={showAllSteps}
                 />
             )}
 
@@ -620,6 +621,7 @@ const NavigationPage = () => {
                     volunteerReports={volunteerReports}
                     handleResolveReport={handleResolveReport}
                     isMenuVisible={isMenuVisible}
+                    showAllSteps={showAllSteps}
                 />
             )}
         </View>
