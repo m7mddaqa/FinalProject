@@ -19,7 +19,7 @@ const EventSchema = new mongoose.Schema({
     createdAt: {
         type: Date,
         default: Date.now,
-        expires: 3600 //delete after 1 hour
+        expires: 300 //delete after 5mins
     }
 });
 

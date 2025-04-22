@@ -8,7 +8,7 @@ import axios from 'axios';
 import { URL } from '@env';
 
 //cancel the ride and reset the state
-export const cancelRide = (setDestination, setInstructions, setCurrentStepIndex,setShowAllSteps, exit = false) => {
+export const cancelRide = (setDestination, setInstructions, setCurrentStepIndex, setShowAllSteps, exit = false) => {
     setDestination(null);
     setInstructions([]);
     setCurrentStepIndex(0);
@@ -111,7 +111,7 @@ export const handleMenuToggle = (isMenuVisible, slideAnim, setIsMenuVisible) => 
             useNativeDriver: true,
         }).start();
     }
-};   
+};
 
 //recenter the map to the user's location
 export const handleRecenter = async (setOrigin, setMapRegion) => {
@@ -131,7 +131,40 @@ export const handleRecenter = async (setOrigin, setMapRegion) => {
     });
 };
 
+//add this function to calculate ETA
+export const calculateETA = (steps, currentIndex) => {
+    if (!steps || steps.length === 0) return null;
 
+    //sum up remaining durations from current step onwards
+    const totalSeconds = steps.slice(currentIndex).reduce((sum, step) => sum + step.duration, 0);
+
+    //calculate arrival time
+    const now = new Date();
+    const arrivalTime = new Date(now.getTime() + totalSeconds * 1000);
+
+    //format as HH:MM
+    const formattedTime = arrivalTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    //calculate remaining time in hours and minutes
+    const totalMinutes = Math.ceil(totalSeconds / 60);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+
+    let remainingTimeText = '';
+    if (hours > 0) {
+        remainingTimeText = `${hours} hour${hours > 1 ? 's' : ''}`;
+        if (minutes > 0) {
+            remainingTimeText += ` ${minutes} min`;
+        }
+    } else {
+        remainingTimeText = `${minutes} min`;
+    }
+
+    return {
+        arrivalTime: formattedTime,
+        remainingTime: remainingTimeText
+    };
+};
 
 //calculate shortest distance from a point to the route polyline (in meters)
 export const calculateDistanceToRoute = (point, routeCoords) => {
@@ -181,12 +214,34 @@ export const calculateDistanceToRoute = (point, routeCoords) => {
     return minDist;
 };
 
-export const handleReport = async (type, setShowReportPanel) => {
+export const fetchVolunteerReports = async (setVolunteerReports) => {
+    try {
+        console.log('Attempting to fetch reports...');
+        const token = await AsyncStorage.getItem('token');
+        console.log('Token exists:', !!token);
+
+        // Get current location
+        const location = await Location.getCurrentPositionAsync({});
+        const { latitude, longitude } = location.coords;
+
+        const response = await axios.get(`${URL}/api/events?latitude=${latitude}&longitude=${longitude}`, {
+            headers: {
+                Authorization: `Bearer ${token}`
+            }
+        });
+        console.log('Reports fetched:', response.data);
+        setVolunteerReports(response.data);
+    } catch (error) {
+        console.error('Error fetching reports:', error);
+    }
+};
+
+export const handleReport = async (type, setShowReportPanel, setVolunteerReports) => {
     try {
         const { coords } = await Location.getCurrentPositionAsync({});
         const token = await AsyncStorage.getItem('token'); //get token from storage
 
-        await axios.post(`${URL}/events`, {
+        const response = await axios.post(`${URL}/api/events`, {
             type,
             location: {
                 latitude: coords.latitude,
@@ -197,6 +252,9 @@ export const handleReport = async (type, setShowReportPanel) => {
                 Authorization: `Bearer ${token}`
             }
         });
+        if (response.status === 201) {
+            fetchVolunteerReports(setVolunteerReports); //fetch updated reports
+        }
 
         Alert.alert("Reported", `You reported: ${type}`);
         setShowReportPanel(false);

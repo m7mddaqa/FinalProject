@@ -3,12 +3,12 @@ import bodyParser from 'body-parser';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import cors from 'cors';
-import User from './Schemas/User.js';
-import crypto from 'crypto';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import http from 'http';
+import { Server } from 'socket.io';
 
-
+//import routers and middlewares
 import requireAuth from './middlewares/requireAuth.js';
 import signupRouter from './Routers/signupRouter.js';
 import loginRouter from './Routers/loginRouter.js';
@@ -17,38 +17,67 @@ import searchHistoryRouter from './Routers/searchHistoryRouter.js';
 import userRouter from './Routers/userRouter.js';
 import eventsRouter from './Routers/eventsRouter.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import Event from './Schemas/Event.js';
 
-const app = express();
-app.use(bodyParser.json());
 dotenv.config();
-app.use(cors());
+const app = express();
+const server = http.createServer(app);
 
-//serve files from the uploads directory
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
-const MONGODB_URI = process.env.MONGODB_URI;
-mongoose.connect(MONGODB_URI)
-    .then(() => console.log('MongoDB connected...'))
-    .catch(err => console.log(err));
-
-//JWT SECRET: used it one time to generate token key: (Now saved in .env)
-//console.log(crypto.randomBytes(64).toString('hex'));
-
-
-app.get('/', (req, res) => {
-    res.send('Hello World!');
+//WebSocket setup
+const io = new Server(server, {
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT']
+  }
 });
 
+io.on('connection', (socket) => {
+  console.log('[SOCKET] Client connected:', socket.id);
+  socket.on('disconnect', () => {
+    console.log('[SOCKET] Client disconnected:', socket.id);
+  });
+});
+
+app.set('io', io);
+
+//middleware
+app.use(cors());
+app.use(bodyParser.json());
+app.use('/uploads', express.static(path.join(path.dirname(fileURLToPath(import.meta.url)), 'uploads')));
+
+//mongoDB
+const MONGODB_URI = process.env.MONGODB_URI;
+mongoose.connect(MONGODB_URI)
+  .then(async () => {
+    console.log('[DB] MongoDB connected');
+
+
+    const collection = mongoose.connection.db.collection('events');
+    const indexes = await collection.indexes();
+    const ttlIndex = indexes.find(i => i.name === 'createdAt_1');
+    if (ttlIndex) {
+      await collection.dropIndex('createdAt_1');
+      console.log('[TTL] Old TTL index dropped');
+    }
+    await collection.createIndex({ createdAt: 1 }, { expireAfterSeconds: 300 });
+    console.log('[TTL] Correct TTL index created');
+  })
+  .catch(err => console.error('[DB] MongoDB connection error:', err));
+
+//routes
 app.use(signupRouter);
 app.use(loginRouter);
 app.use(testingRoute);
-app.use(eventsRouter);
+app.use('/api', eventsRouter);
 app.use(searchHistoryRouter);
 app.use(userRouter);
 
+//root
+app.get('/', (req, res) => {
+  res.send('Hello World!');
+});
 
-app.listen(3001, '0.0.0.0', () => {
-    console.log('Server is running on http://10.0.0.16:3001');
+//start server
+server.listen(3001, '0.0.0.0', () => {
+  console.log('Server is running on http://10.0.0.16:3001');
 });

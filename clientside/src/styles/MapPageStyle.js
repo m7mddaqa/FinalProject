@@ -495,6 +495,12 @@ export const styles = StyleSheet.create({
         color: '#666',
         marginBottom: 5,
     },
+    volunteerReportDistance: {
+        fontSize: 14,
+        color: '#067ef5',
+        fontWeight: 'bold',
+        marginBottom: 5,
+    },
     volunteerReportTime: {
         fontSize: 12,
         color: '#888',
@@ -599,5 +605,18 @@ export const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: 'bold',
         color: '#007AFF',
+    },
+    eventMarker: {
+        padding: 5,
+        borderRadius: 20,
+        backgroundColor: 'white',
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+        elevation: 5,
     },
 });

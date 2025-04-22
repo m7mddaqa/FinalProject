@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import { styles } from '../styles/MapPageStyle';
 import { handleReport } from '../services/driveHelpers';
 
-const ReportPanel = ({ setShowReportPanel }) => {
+const ReportPanel = ({ setShowReportPanel, setVolunteerReports }) => {
     const reportOptions = [
         { icon: '🚗', label: 'Traffic Jam' },
         { icon: '👮', label: 'Police' },
@@ -29,7 +29,7 @@ const ReportPanel = ({ setShowReportPanel }) => {
                     <TouchableOpacity
                         key={index}
                         style={styles.reportItem}
-                        onPress={() => handleReport(item.label, setShowReportPanel)}
+                        onPress={() => handleReport(item.label, setShowReportPanel, setVolunteerReports)}
                     >
                         <Text style={styles.reportIcon}>{item.icon}</Text>
                         <Text style={styles.reportLabel}>{item.label}</Text>

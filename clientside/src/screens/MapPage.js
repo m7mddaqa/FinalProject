@@ -25,7 +25,9 @@ import StepsBar from './MapPageStepsBar.js';
 import SearchBar from './MapPageSearchaBar.js';
 import ReportPanel from './MapPageReportPanel.js';
 import VolunteerPanel from './MapPageVolounteerPanel.js';
-import { cancelRide, getManeuverIcon, handleRecenter, renderHistoryItem, handleMenuToggle, getManeuverText, calculateDistanceToRoute, handleReport, saveSearchToHistory, fetchSearchHistory } from '../services/driveHelpers';
+import { io } from 'socket.io-client';
+
+import {fetchVolunteerReports, calculateETA, cancelRide, getManeuverIcon, handleRecenter, renderHistoryItem, handleMenuToggle, getManeuverText, calculateDistanceToRoute, handleReport, saveSearchToHistory, fetchSearchHistory } from '../services/driveHelpers';
 
 const googleMapsApiKey = MapsApiKey;
 
@@ -59,6 +61,7 @@ const NavigationPage = () => {
     const [searchQuery, setSearchQuery] = useState(''); //search query for autocomplete
     const [isInternationalSearch, setIsInternationalSearch] = useState(false);
     const [isStepsBar, setIsStepsBar] = useState(false); //boolean value to check whether steps bar is opened or not
+    const [events, setEvents] = useState([]); // Add this new state for events
 
     // Add useEffect to update isStepsBar state
     useEffect(() => {
@@ -76,10 +79,10 @@ const NavigationPage = () => {
     const handleMenu = () => {
         handleMenuToggle(isMenuVisible, slideAnim, setIsMenuVisible);
     };
-    
 
 
-    //useEffects:
+
+    //useEffects:t
 
     //check if token exists
     useEffect(() => {
@@ -100,6 +103,15 @@ const NavigationPage = () => {
         loadHistory();
     }, []);
 
+
+    // //fetch search history when component mounts
+    // useEffect(() => {
+    //     const loadHistory = async () => {
+    //         const history = await fetchSearchHistory();
+    //         setSearchHistory(history);
+    //     };
+    //     loadHistory();
+    // }, []);
 
     //check and get location permission
     useEffect(() => {
@@ -273,28 +285,54 @@ const NavigationPage = () => {
             setIsVolunteerUser(volunteerStatus);
             if (volunteerStatus) {
                 console.log('Fetching volunteer reports...');
-                fetchVolunteerReports();
+                fetchVolunteerReports(setVolunteerReports);
             }
         };
         checkUserType();
     }, []);
 
-    const fetchVolunteerReports = async () => {
-        try {
-            console.log('Attempting to fetch reports...');
-            const token = await AsyncStorage.getItem('token');
-            console.log('Token exists:', !!token);
-            const response = await axios.get(`${URL}/events`, {
-                headers: {
-                    Authorization: `Bearer ${token}`
+    //optimized refresh mechanism for volunteer dashboard
+    useEffect(() => {
+        let socket;
+
+        const setupSocket = () => {
+            socket = io(URL);
+        
+            socket.on('connect', () => {
+                console.log('Connected to socket server');
+            });
+
+            socket.on('newEvent', async () => {
+                // Update both map events and volunteer reports
+                await fetchEvents();
+                if (isVolunteerUser) {
+                    await fetchVolunteerReports(setVolunteerReports);
                 }
             });
-            console.log('Reports fetched:', response.data);
-            setVolunteerReports(response.data);
-        } catch (error) {
-            console.error('Error fetching reports:', error);
-        }
-    };
+
+            socket.on('updateReports', async () => {
+                // Update both map events and volunteer reports
+                await fetchEvents();
+                if (isVolunteerUser) {
+                    await fetchVolunteerReports(setVolunteerReports);
+                }
+            });
+
+            socket.on('disconnect', () => {
+                console.log('Disconnected from socket server');
+            });
+
+            return socket;
+        };
+
+        setupSocket();
+
+        return () => {
+            if (socket) {
+                socket.disconnect();
+            }
+        };
+    }, [origin, isVolunteerUser]); // Add isVolunteerUser to dependencies
 
     const handleVolunteerPanel = () => {
         setShowVolunteerPanel(prev => !prev);
@@ -309,7 +347,7 @@ const NavigationPage = () => {
                 }
             });
             Alert.alert('Success', 'Report marked as resolved');
-            fetchVolunteerReports();
+            fetchVolunteerReports(setVolunteerReports);
         } catch (error) {
             console.error('Error resolving report:', error);
             Alert.alert('Error', 'Failed to resolve report');
@@ -357,42 +395,6 @@ const NavigationPage = () => {
     }, [instructions, routeCoordinates]);
 
 
-
-    //add this function to calculate ETA
-    const calculateETA = (steps, currentIndex) => {
-        if (!steps || steps.length === 0) return null;
-
-        //sum up remaining durations from current step onwards
-        const totalSeconds = steps.slice(currentIndex).reduce((sum, step) => sum + step.duration, 0);
-
-        //calculate arrival time
-        const now = new Date();
-        const arrivalTime = new Date(now.getTime() + totalSeconds * 1000);
-
-        //format as HH:MM
-        const formattedTime = arrivalTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-        //calculate remaining time in hours and minutes
-        const totalMinutes = Math.ceil(totalSeconds / 60);
-        const hours = Math.floor(totalMinutes / 60);
-        const minutes = totalMinutes % 60;
-
-        let remainingTimeText = '';
-        if (hours > 0) {
-            remainingTimeText = `${hours} hour${hours > 1 ? 's' : ''}`;
-            if (minutes > 0) {
-                remainingTimeText += ` ${minutes} min`;
-            }
-        } else {
-            remainingTimeText = `${minutes} min`;
-        }
-
-        return {
-            arrivalTime: formattedTime,
-            remainingTime: remainingTimeText
-        };
-    };
-
     //update ETA when steps or current step changes
     useEffect(() => {
         if (instructions.length > 0) {
@@ -413,6 +415,23 @@ const NavigationPage = () => {
         setIsInternationalSearch(isInternational);
     };
 
+    // Add this function to fetch events
+    const fetchEvents = async () => {
+        if (origin) {
+            try {
+                const response = await axios.get(`${URL}/api/events?latitude=${origin.latitude}&longitude=${origin.longitude}`);
+                console.log('Events response:', response.data); // Add logging
+                setEvents(response.data);
+            } catch (error) {
+                console.error('Error fetching events:', error.response?.data || error.message);
+            }
+        }
+    };
+
+    // Add useEffect to fetch events when origin changes
+    useEffect(() => {
+        fetchEvents();
+    }, [origin]);
 
     // Conditional rendering: show loading screen
     if (isCheckingToken) {
@@ -459,9 +478,7 @@ const NavigationPage = () => {
                     style={styles.map}
                     region={mapRegion}
                     showsUserLocation={true}
-                    isTrafficEnabled={true}
-                    showsMyLocationButton={false}
-                    showsCompass={true}
+                    followsUserLocation={true}
                 >
                     {/* 📍 Destination Marker */}
                     {destination && <Marker coordinate={destination} title="Destination" />}
@@ -481,6 +498,27 @@ const NavigationPage = () => {
                             }}
                         />
                     )}
+
+                    {/* Add event markers */}
+                    {events.map((event, index) => (
+                        <Marker
+                            key={event._id || index}
+                            coordinate={{
+                                latitude: event.location.latitude,
+                                longitude: event.location.longitude
+                            }}
+                            title={event.type}
+                            description={`Distance: ${event.distance.toFixed(2)} km`}
+                        >
+                            <View style={styles.eventMarker}>
+                                <MaterialCommunityIcons 
+                                    name="alert-circle" 
+                                    size={30} 
+                                    color="#ff4444"
+                                />
+                            </View>
+                        </Marker>
+                    ))}
                 </MapView>
             )}
 
@@ -537,7 +575,10 @@ const NavigationPage = () => {
 
             {/* 🚨 Report Panel */}
             {(showReportPanel && !isMenuVisible) && (
-                <ReportPanel setShowReportPanel={setShowReportPanel} />
+                <ReportPanel
+                setShowReportPanel={setShowReportPanel}
+                setVolunteerReports={setVolunteerReports}
+                />
             )}
 
             {/* 🔄 Rerouting Indicator */}
@@ -568,7 +609,7 @@ const NavigationPage = () => {
                     ]}
                     onPress={handleVolunteerPanel}
                 >
-                    <MaterialCommunityIcons name="medical-bag" size={40} color="white" style={{ marginLeft:-5 , marginTop: -8}}/>
+                    <MaterialCommunityIcons name="medical-bag" size={40} color="white" style={{ marginLeft: -5, marginTop: -8 }} />
                 </TouchableOpacity>
             )}
 
