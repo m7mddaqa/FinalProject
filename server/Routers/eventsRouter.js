@@ -62,20 +62,20 @@ router.get('/events', async (req, res) => {
       return res.json(events);
     }
 
-    // Convert coordinates to numbers
+    //convert coordinates to numbers
     const userLat = parseFloat(latitude);
     const userLng = parseFloat(longitude);
 
-    // Get all unresolved events
+    //get all unresolved events
     const events = await Event.find({ resolved: { $ne: true } });
 
-    // Calculate distance for each event and add it to the event object
+    //calculate distance for each event and add it to the event object
     const eventsWithDistance = events.map(event => {
       const eventLat = event.location.latitude;
       const eventLng = event.location.longitude;
       
-      // Calculate distance using Haversine formula
-      const R = 6371; // Earth's radius in kilometers
+      //calculate distance using Haversine formula
+      const R = 6371; //earth's radius in kilometers
       const dLat = (eventLat - userLat) * Math.PI / 180;
       const dLng = (eventLng - userLng) * Math.PI / 180;
       const a = 
@@ -91,7 +91,7 @@ router.get('/events', async (req, res) => {
       };
     });
 
-    // Sort events by distance
+    //sort events by distance
     eventsWithDistance.sort((a, b) => a.distance - b.distance);
 
     res.json(eventsWithDistance);

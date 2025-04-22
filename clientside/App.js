@@ -12,6 +12,7 @@ import LoginPage from './src/screens/LoginPage';
 import SignupPage from './src/screens/SignupPage';
 import MapPage from './src/screens/MapPage';
 import ProfilePage from './src/screens/ProfilePage';
+import Settings from './src/screens/Settings';
 
 const Stack = createNativeStackNavigator();
 function MyStack() {
@@ -66,6 +67,15 @@ function MyStack() {
           headerStyle: { backgroundColor: '#067ef5' },
           headerTintColor: '#fff',
           headerTitleStyle: { fontWeight: 'bold' },
+        }}
+      />
+
+      <Stack.Screen
+        name="Settings"
+        component={Settings}
+        options={{
+          title: 'Settings',
+          headerShown: false,
         }}
       />
 

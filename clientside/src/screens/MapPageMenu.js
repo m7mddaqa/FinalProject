@@ -3,7 +3,6 @@ import { Animated, View, Text, TouchableOpacity } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { styles } from '../styles/MapPageStyle';
 import { cancelRide } from '../services/driveHelpers';
-import { useTheme } from '../context/ThemeContext';
 
 const MapPageMenu = ({
     slideAnim,
@@ -13,14 +12,12 @@ const MapPageMenu = ({
     setInstructions,
     setCurrentStepIndex,
 }) => {
-    const { isDarkMode, toggleTheme } = useTheme();
-
     const themeStyles = {
-        menu: isDarkMode ? styles.slidingMenuDark : styles.slidingMenu,
-        text: isDarkMode ? styles.menuItemTextDark : styles.menuItemText,
-        icon: isDarkMode ? '#FFFFFF' : '#000000',
-        profileName: isDarkMode ? styles.profileNameDark : styles.profileName,
-        menuItem: isDarkMode ? styles.menuItemDark : styles.menuItem,
+        menu: styles.slidingMenu,
+        text: styles.menuItemText,
+        icon: '#000000',
+        profileName: styles.profileName,
+        menuItem: styles.menuItem,
     };
 
     return (
@@ -60,20 +57,12 @@ const MapPageMenu = ({
                 <Text style={themeStyles.text}>Inbox</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={themeStyles.menuItem}>
+            <TouchableOpacity 
+                style={themeStyles.menuItem}
+                onPress={() => navigation.navigate('Settings')}
+            >
                 <MaterialIcons name="settings" size={24} color={themeStyles.icon} />
                 <Text style={themeStyles.text}>Settings</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={themeStyles.menuItem} onPress={toggleTheme}>
-                <MaterialIcons 
-                    name={isDarkMode ? "light-mode" : "dark-mode"} 
-                    size={24} 
-                    color={themeStyles.icon} 
-                />
-                <Text style={themeStyles.text}>
-                    {isDarkMode ? "Light mode" : "Dark mode"}
-                </Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={themeStyles.menuItem}>

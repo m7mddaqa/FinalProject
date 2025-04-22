@@ -18,7 +18,6 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import polyline from '@mapbox/polyline';
 import axios from 'axios';
 import { URL } from '@env';
-import LogoutButton from './LogoutButton';
 import { isVolunteer } from '../services/userTypeService';
 import MapPageMenu from './MapPageMenu.js';
 import StepsBar from './MapPageStepsBar.js';
@@ -158,8 +157,12 @@ const NavigationPage = () => {
         if (!origin || !destination) return;
         const fetchDirections = async () => {
             try {
+                //get avoidTolls setting
+                const avoidTolls = await AsyncStorage.getItem('avoidTolls');
+                const avoidTollsParam = avoidTolls === 'true' ? '&avoid=tolls' : '';
+
                 const response = await fetch(
-                    `https://maps.googleapis.com/maps/api/directions/json?origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}&key=${googleMapsApiKey}`
+                    `https://maps.googleapis.com/maps/api/directions/json?origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}${avoidTollsParam}&key=${googleMapsApiKey}`
                 );
                 const data = await response.json();
 
@@ -453,9 +456,6 @@ const NavigationPage = () => {
 
     return (
         <View style={styles.container}>
-            {/* Logout Button */}
-            <LogoutButton />
-
             {/* 🔍 Search Input + History */}
             <SearchBar
                 handleSearchTextChange={handleSearchTextChange}

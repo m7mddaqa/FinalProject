@@ -38,6 +38,27 @@ io.on('connection', (socket) => {
   });
 });
 
+//add periodic check for expired events
+setInterval(async () => {
+  try {
+    const expiredEvents = await Event.find({
+      createdAt: { $lt: new Date(Date.now() - 300000) } // 5 minutes ago
+    });
+    
+    if (expiredEvents.length > 0) {
+      //remove expired events
+      await Event.deleteMany({
+        createdAt: { $lt: new Date(Date.now() - 300000) }
+      });
+      
+      //notify all clients
+      io.emit('updateReports');
+    }
+  } catch (error) {
+    console.error('Error checking for expired events:', error);
+  }
+}, 60000); //check every minute
+
 app.set('io', io);
 
 //middleware
