@@ -436,6 +436,28 @@ const NavigationPage = () => {
         fetchEvents();
     }, [origin]);
 
+    // Add periodic refresh for events when volunteer panel is visible
+    useEffect(() => {
+        let interval;
+        if (isVolunteerUser && showVolunteerPanel) {
+            // Initial fetch
+            fetchEvents();
+            fetchVolunteerReports(setVolunteerReports);
+            
+            // Set up interval for periodic refresh
+            interval = setInterval(() => {
+                fetchEvents();
+                fetchVolunteerReports(setVolunteerReports);
+            }, 60000); // Refresh every minute
+        }
+
+        return () => {
+            if (interval) {
+                clearInterval(interval);
+            }
+        };
+    }, [isVolunteerUser, showVolunteerPanel]);
+
     // Conditional rendering: show loading screen
     if (isCheckingToken) {
         return (
