@@ -1,12 +1,19 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, Image, ScrollView } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, Text, TouchableOpacity, Image, ScrollView, Alert } from 'react-native';
 import { styles } from '../styles/MapPageStyle';
 import { handleReport } from '../services/driveHelpers';
+import { useNavigation } from '@react-navigation/native';
+import { useTheme } from '../context/ThemeContext';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 const ReportPanel = ({ setShowReportPanel, setVolunteerReports, showAllSteps }) => {
+    const navigation = useNavigation();
+    const { isDarkMode } = useTheme();
+    
     if (showAllSteps) return null;
 
     const reportOptions = [
+        //https://www.flaticon.com/
         { icon: require('../assets/traffic-jam.png'), label: 'Traffic Jam' },
         { icon: require('../assets/police.png'), label: 'Police' },
         { icon: require('../assets/accident.png'), label: 'Accident' },
@@ -15,21 +22,57 @@ const ReportPanel = ({ setShowReportPanel, setVolunteerReports, showAllSteps }) 
         { icon: require('../assets/fire.png'), label: 'Fire' },
     ];
 
+    const handleReportPress = (reportType) => {
+        Alert.alert(
+            'Add Details',
+            'Would you like to add an image or description to your report?',
+            [
+                {
+                    text: 'Report Without Details',
+                    onPress: () => {
+                        handleReport(reportType, setShowReportPanel, setVolunteerReports);
+                        setShowReportPanel(false);
+                    },
+                    style: 'cancel',
+                },
+                {
+                    text: 'Add Details',
+                    onPress: () => {
+                        setShowReportPanel(false);
+                        navigation.navigate('ReportDetails', { reportType });
+                    },
+                },
+            ],
+            { cancelable: true }
+        );
+    };
+
+    useEffect(() => {
+        const unsubscribe = navigation.addListener('focus', () => {
+            //reset any necessary state when returning to this screen
+        });
+
+        return unsubscribe;
+    }, [navigation]);
+
     return (
-        <View style={styles.reportPanel}>
-            <Text style={styles.reportTitle}>Report</Text>
-            <TouchableOpacity onPress={() => setShowReportPanel(false)}>
-                <Text style={styles.closeReportPanelButton}>✕</Text>
+        <View style={isDarkMode ? styles.reportPanelDark : styles.reportPanel}>
+            <Text style={isDarkMode ? styles.reportTitleDark : styles.reportTitle}>Report</Text>
+            <TouchableOpacity 
+                style={styles.closeButton}
+                onPress={() => setShowReportPanel(false)}
+            >
+                <Ionicons name="close" style={isDarkMode ? styles.closeButtonIconDark : styles.closeButtonIcon} />
             </TouchableOpacity>
             <ScrollView style={styles.reportGrid}>
                 {reportOptions.map((item, index) => (
                     <TouchableOpacity
                         key={index}
-                        style={styles.reportItem}
-                        onPress={() => handleReport(item.label, setShowReportPanel, setVolunteerReports)}
+                        style={isDarkMode ? styles.reportItemDark : styles.reportItem}
+                        onPress={() => handleReportPress(item.label)}
                     >
                         <Image source={item.icon} style={styles.reportIcon} />
-                        <Text style={styles.reportLabel}>{item.label}</Text>
+                        <Text style={isDarkMode ? styles.reportLabelDark : styles.reportLabel}>{item.label}</Text>
                     </TouchableOpacity>
                 ))}
             </ScrollView>

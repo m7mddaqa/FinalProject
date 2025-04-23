@@ -13,6 +13,8 @@ import SignupPage from './src/screens/SignupPage';
 import MapPage from './src/screens/MapPage';
 import ProfilePage from './src/screens/ProfilePage';
 import Settings from './src/screens/Settings';
+import EventDetailsScreen from './src/screens/EventDetailsScreen';
+import ReportDetailsScreen from './src/screens/ReportDetailsScreen';
 
 const Stack = createNativeStackNavigator();
 function MyStack() {
@@ -79,10 +81,27 @@ function MyStack() {
         }}
       />
 
+      <Stack.Screen
+        name="EventDetails"
+        component={EventDetailsScreen}
+        options={{
+          title: 'Event Details',
+          headerShown: false,
+        }}
+      />
+
+      <Stack.Screen
+        name="ReportDetails"
+        component={ReportDetailsScreen}
+        options={{
+          title: 'Add Report Details',
+          headerShown: false,
+        }}
+      />
+
     </Stack.Navigator>
   );
 }
-
 
 export default function App() {
   return (

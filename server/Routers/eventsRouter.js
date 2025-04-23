@@ -1,11 +1,26 @@
 import express from 'express';
 const router = express.Router();
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 import Event from '../Schemas/Event.js';
+import User from '../Schemas/User.js';
 import jwt from 'jsonwebtoken';
+import upload from '../middlewares/uploadMiddleware.js';
 
-router.post('/events', async (req, res) => {
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+router.post('/events', upload.single('image'), upload.validateFile, upload.errorHandler, async (req, res) => {
   console.log('[INFO] /api/events POST route hit');
+  console.log('[DEBUG] Request body:', req.body);
+  console.log('[DEBUG] Uploaded file:', req.file);
+
+  // Check if file upload failed
+  if (req.fileValidationError) {
+    console.error('[ERROR] File validation error:', req.fileValidationError);
+    return res.status(400).json({ error: req.fileValidationError });
+  }
 
   // 1. Check token
   const token = req.headers.authorization?.split(' ')[1];
@@ -25,7 +40,7 @@ router.post('/events', async (req, res) => {
   }
 
   // 2. Validate request body
-  const { type, location } = req.body;
+  const { type, location, description } = req.body;
   if (!type || !location || !location.latitude || !location.longitude) {
     console.warn('[WARN] Missing or invalid event data:', req.body);
     return res.status(400).json({ error: 'Invalid event data' });
@@ -33,10 +48,33 @@ router.post('/events', async (req, res) => {
 
   // 3. Try to save to MongoDB
   try {
+    const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
+    console.log('[DEBUG] Constructed image URL:', imageUrl);
+    
+    // Get user information
+    const user = await User.findById(userId);
+    if (!user) {
+      console.error('[ERROR] User not found:', userId);
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Validate user information
+    if (!user.username || !user.email) {
+      console.error('[ERROR] User missing required information:', { username: user.username, email: user.email });
+      return res.status(400).json({ error: 'User profile incomplete. Please update your profile.' });
+    }
+
     const event = new Event({
       type,
       location,
-      userId
+      description: description || '',
+      image: imageUrl,
+      userId,
+      userInfo: {
+        name: user.username,
+        email: user.email
+      },
+      verified: 'pending'
     });
 
     await event.save();
@@ -44,10 +82,11 @@ router.post('/events', async (req, res) => {
     //emit to all connected clients
     io.emit('newEvent', event);
     io.emit('updateReports');
-    console.log('[SUCCESS] Event saved to DB:', { type, location });
+    console.log('[INFO] Event saved successfully:', event);
     res.status(201).json(event);
   } catch (err) {
     console.error('[ERROR] Failed to save event:', err.message);
+    console.error('[ERROR] Full error:', err);
     res.status(500).json({ error: 'Database error while saving event' });
   }
 });
@@ -58,7 +97,8 @@ router.get('/events', async (req, res) => {
     const { latitude, longitude } = req.query;
     
     if (!latitude || !longitude) {
-      const events = await Event.find({ resolved: { $ne: true } }).sort({ createdAt: -1 });
+      const events = await Event.find({ resolved: { $ne: true } })
+        .sort({ createdAt: -1 });
       return res.json(events);
     }
 

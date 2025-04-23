@@ -25,6 +25,7 @@ import SearchBar from './MapPageSearchaBar.js';
 import ReportPanel from './MapPageReportPanel.js';
 import VolunteerPanel from './MapPageVolounteerPanel.js';
 import { io } from 'socket.io-client';
+import { useTheme } from '../context/ThemeContext';
 
 import {fetchVolunteerReports, calculateETA, cancelRide, getManeuverIcon, handleRecenter, renderHistoryItem, handleMenuToggle, getManeuverText, calculateDistanceToRoute, handleReport, saveSearchToHistory, fetchSearchHistory } from '../services/driveHelpers';
 
@@ -61,25 +62,21 @@ const NavigationPage = () => {
     const [isInternationalSearch, setIsInternationalSearch] = useState(false);
     const [isStepsBar, setIsStepsBar] = useState(false); //boolean value to check whether steps bar is opened or not
     const [events, setEvents] = useState([]); // Add this new state for events
+    const { isDarkMode } = useTheme();
 
-    // Add useEffect to update isStepsBar state
-    useEffect(() => {
-        setIsStepsBar(instructions.length > 0 || showAllSteps);
-    }, [instructions, showAllSteps]);
+
 
     //functions:
 
     const handleAddEvent = () => {
+        setShowVolunteerPanel(false); //close volunteer panel first
         setShowReportPanel(prev => !prev);
     };
-
 
     //opening menu function + animation
     const handleMenu = () => {
         handleMenuToggle(isMenuVisible, slideAnim, setIsMenuVisible);
     };
-
-
 
     //useEffects:t
 
@@ -91,7 +88,10 @@ const NavigationPage = () => {
             setIsCheckingToken(false);
         })();
     }, []);
-
+    //add useEffect to update isStepsBar state
+    useEffect(() => {
+        setIsStepsBar(instructions.length > 0 || showAllSteps);
+    }, [instructions, showAllSteps]);
 
     //fetch search history when component mounts
     useEffect(() => {
@@ -101,16 +101,6 @@ const NavigationPage = () => {
         };
         loadHistory();
     }, []);
-
-
-    // //fetch search history when component mounts
-    // useEffect(() => {
-    //     const loadHistory = async () => {
-    //         const history = await fetchSearchHistory();
-    //         setSearchHistory(history);
-    //     };
-    //     loadHistory();
-    // }, []);
 
     //check and get location permission
     useEffect(() => {
@@ -335,9 +325,10 @@ const NavigationPage = () => {
                 socket.disconnect();
             }
         };
-    }, [origin, isVolunteerUser]); // Add isVolunteerUser to dependencies
+    }, [origin, isVolunteerUser]); //add isVolunteerUser to dependencies
 
     const handleVolunteerPanel = () => {
+        setShowReportPanel(false); //close report panel first
         setShowVolunteerPanel(prev => !prev);
     };
 
@@ -396,7 +387,6 @@ const NavigationPage = () => {
 
         return () => clearInterval(interval);
     }, [instructions, routeCoordinates]);
-
 
     //update ETA when steps or current step changes
     useEffect(() => {
@@ -501,6 +491,7 @@ const NavigationPage = () => {
                     region={mapRegion}
                     showsUserLocation={true}
                     followsUserLocation={true}
+                    showsMyLocationButton={false}
                 >
                     {/* 📍 Destination Marker */}
                     {destination && <Marker coordinate={destination} title="Destination" />}
@@ -544,10 +535,31 @@ const NavigationPage = () => {
                 </MapView>
             )}
 
+            {/* 📍 Recenter Button */}
+            {!isMenuVisible && (
+                <TouchableOpacity
+                    style={isDarkMode ? styles.recenterButtonDark : styles.recenterButton}
+                    onPress={() => handleRecenter(setOrigin, setMapRegion)}
+                >
+                    <MaterialIcons 
+                        name="my-location" 
+                        size={24} 
+                        style={isDarkMode ? styles.recenterIconDark : styles.recenterIconLight} 
+                    />
+                </TouchableOpacity>
+            )}
+
             {/* ☰ Menu Button */}
             {!isMenuVisible && (
-                <TouchableOpacity style={styles.menu} onPress={handleMenu}>
-                    <Entypo name="menu" size={24} color="black" />
+                <TouchableOpacity
+                    style={isDarkMode ? styles.menuDark : styles.menu}
+                    onPress={handleMenu}
+                >
+                    <Entypo 
+                        name="menu" 
+                        size={24} 
+                        style={isDarkMode ? styles.menuIconDark : styles.menuIconLight} 
+                    />
                 </TouchableOpacity>
             )}
 
@@ -560,16 +572,6 @@ const NavigationPage = () => {
                 setInstructions={setInstructions}
                 setCurrentStepIndex={setCurrentStepIndex}
             />
-
-            {/* 📍 Recenter Button */}
-            {!isMenuVisible && (
-                <TouchableOpacity
-                    style={styles.recenterButton}
-                    onPress={() => handleRecenter(setOrigin, setMapRegion)}
-                >
-                    <MaterialIcons name="gps-fixed" size={24} color="black" />
-                </TouchableOpacity>
-            )}
 
             {/* 🧭 Navigation Steps Bar */}
             <StepsBar
@@ -587,7 +589,17 @@ const NavigationPage = () => {
 
             {/* ➕ Add Event Button */}
             {!isMenuVisible && !showReportPanel && (
-                <TouchableOpacity onPress={handleAddEvent} style={!isStepsBar ? styles.addEventButton : (showAllSteps ? styles.addEventButtonFullStepsBar : styles.addEventButtonStepsBar)}>
+                <TouchableOpacity 
+                    onPress={handleAddEvent} 
+                    style={
+                        !isStepsBar 
+                            ? (isDarkMode ? styles.addEventButtonDark : styles.addEventButton)
+                            : (showAllSteps 
+                                ? (isDarkMode ? styles.addEventButtonFullStepsBarDark : styles.addEventButtonFullStepsBar)
+                                : (isDarkMode ? styles.addEventButtonStepsBarDark : styles.addEventButtonStepsBar)
+                            )
+                    }
+                >
                     <Image
                         source={require('../images/add_new_event_to_map.webp')}
                         style={styles.addEventIcon}
@@ -620,8 +632,6 @@ const NavigationPage = () => {
                     <Text style={{ marginLeft: 5, fontWeight: 'bold' }}>Recalculating...</Text>
                 </View>
             )}
-
-
 
             {/* 🆘 Volunteer Button */}
             {isVolunteerUser && !isMenuVisible && !showVolunteerPanel && (

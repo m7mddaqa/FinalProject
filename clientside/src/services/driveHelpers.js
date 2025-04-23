@@ -115,20 +115,28 @@ export const handleMenuToggle = (isMenuVisible, slideAnim, setIsMenuVisible) => 
 
 //recenter the map to the user's location
 export const handleRecenter = async (setOrigin, setMapRegion) => {
-    let loc = await Location.getLastKnownPositionAsync({});
-    if (!loc) {
-        loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.BestForNavigation }); //BestForNavigation accuracy for recenter
+    try {
+        const { coords } = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+            timeInterval: 0,
+            distanceInterval: 0
+        });
+        
+        const newRegion = {
+            latitude: coords.latitude,
+            longitude: coords.longitude,
+            latitudeDelta: 0.01,
+            longitudeDelta: 0.01,
+        };
+
+        setOrigin({
+            latitude: coords.latitude,
+            longitude: coords.longitude,
+        });
+        setMapRegion(newRegion);
+    } catch (error) {
+        console.error('Error getting location:', error);
     }
-    const coords = {
-        latitude: loc.coords.latitude,
-        longitude: loc.coords.longitude,
-    };
-    setOrigin(coords);
-    setMapRegion({
-        ...coords,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-    });
 };
 
 //add this function to calculate ETA
@@ -229,6 +237,7 @@ export const fetchVolunteerReports = async (setVolunteerReports) => {
                 Authorization: `Bearer ${token}`
             }
         });
+
         console.log('Reports fetched:', response.data);
         setVolunteerReports(response.data);
     } catch (error) {
@@ -236,31 +245,78 @@ export const fetchVolunteerReports = async (setVolunteerReports) => {
     }
 };
 
-export const handleReport = async (type, setShowReportPanel, setVolunteerReports) => {
+export const handleReport = async (reportType, setShowReportPanel, setVolunteerReports, description = '', image = null) => {
     try {
-        const { coords } = await Location.getCurrentPositionAsync({});
-        const token = await AsyncStorage.getItem('token'); //get token from storage
-
-        const response = await axios.post(`${URL}/api/events`, {
-            type,
-            location: {
-                latitude: coords.latitude,
-                longitude: coords.longitude
-            }
-        }, {
-            headers: {
-                Authorization: `Bearer ${token}`
-            }
-        });
-        if (response.status === 201) {
-            fetchVolunteerReports(setVolunteerReports); //fetch updated reports
+        const location = await Location.getCurrentPositionAsync({});
+        if (!location) {
+            Alert.alert('Error', 'Could not get your location');
+            return;
         }
 
-        Alert.alert("Reported", `You reported: ${type}`);
-        setShowReportPanel(false);
+        const token = await AsyncStorage.getItem('token');
+        if (!token) {
+            Alert.alert('Error', 'Please log in to submit a report');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('type', reportType);
+        formData.append('location[latitude]', location.coords.latitude.toString());
+        formData.append('location[longitude]', location.coords.longitude.toString());
+        formData.append('description', description);
+
+        if (image) {
+            //create a proper file object for upload
+            const file = {
+                uri: image.uri,
+                type: image.type || 'image/jpeg',
+                name: image.name || `report_image_${Date.now()}.jpg`
+            };
+            formData.append('image', file);
+        }
+
+        console.log('Submitting report with form data:', {
+            type: reportType,
+            location: {
+                latitude: location.coords.latitude,
+                longitude: location.coords.longitude
+            },
+            description,
+            hasImage: !!image
+        });
+
+        const response = await fetch(`${URL}/api/events`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'multipart/form-data',
+            },
+            body: formData
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error('Server error response:', errorData);
+            throw new Error(errorData.error || 'Failed to submit report');
+        }
+
+        const result = await response.json();
+        console.log('Report submitted successfully:', result);
+        
+        //only update UI state if the setters are provided
+        if (setShowReportPanel) {
+            setShowReportPanel(false);
+        }
+        
+        if (setVolunteerReports) {
+            setVolunteerReports(prev => [...prev, result]);
+        }
+
+        return result;
     } catch (error) {
-        console.error("Failed to report event:", error);
-        Alert.alert("Error", "Failed to report event");
+        console.error('Error submitting report:', error);
+        Alert.alert('Error', error.message || 'Failed to submit report. Please try again.');
+        throw error;
     }
 };
 

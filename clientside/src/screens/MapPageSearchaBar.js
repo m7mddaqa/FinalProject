@@ -4,6 +4,8 @@ import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplet
 import { MaterialIcons } from '@expo/vector-icons';
 import { styles } from '../styles/MapPageStyle';
 import { saveSearchToHistory, renderHistoryItem } from '../services/driveHelpers';
+import { MapsApiKey } from '@env';
+import { useTheme } from '../context/ThemeContext';
 
 const SearchBar = ({
     isMenuVisible,
@@ -17,6 +19,7 @@ const SearchBar = ({
     fetchSearchHistory,
     isInternationalSearch
 }) => {
+    const { isDarkMode } = useTheme();
 
     const handleSearchTextChange = (text) => {
         setSearchQuery(text);
@@ -33,16 +36,9 @@ const SearchBar = ({
 
     return (
         <>
-            <View style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0
-            }}>
+            <View style={styles.searchContainer}>
                 <GooglePlacesAutocomplete
-                    placeholder="Search for a destination"
-                    fetchDetails
+                    placeholder="Search"
                     onPress={(data, details = null) => {
                         if (details) {
                             const loc = details.geometry.location;
@@ -53,82 +49,74 @@ const SearchBar = ({
                             saveSearchToHistory(data.description, loc, setSearchHistory);
                             Keyboard.dismiss();
                         }
+                        setShowHistory(false);
                     }}
                     query={{
-                        key: process.env.MapsApiKey,
+                        key: MapsApiKey,
                         language: 'en',
-                        location: '31.7683,35.2137',
-                        radius: 100000,
-                        components: isInternationalSearch ? undefined : 'country:il',
-                        types: ['address', 'establishment', 'geocode'],
+                    }}
+                    textInputProps={{
+                        value: searchQuery,
+                        onChangeText: handleSearchTextChange,
+                        onFocus: () => setShowHistory(true),
+                        placeholderTextColor: isDarkMode ? '#8E8E93' : '#666666',
                     }}
                     styles={{
-                        container: styles.searchContainer,
-                        textInput: styles.searchInput,
-                        listView: styles.searchList,
+                        container: {
+                            flex: 0,
+                        },
+                        textInput: {
+                            ...(isDarkMode ? styles.searchInputDark : styles.searchInput),
+                            color: isDarkMode ? '#FFFFFF' : '#000000',
+                            paddingLeft: 40,
+                        },
+                        listView: isDarkMode ? styles.searchListDark : styles.searchList,
+                        row: {
+                            backgroundColor: isDarkMode ? '#2C2C2E' : '#FFFFFF',
+                            padding: 13,
+                            height: 44,
+                            flexDirection: 'row',
+                        },
+                        separator: {
+                            height: 1,
+                            backgroundColor: isDarkMode ? '#333333' : '#E5E5E5',
+                        },
+                        description: {
+                            color: isDarkMode ? '#FFFFFF' : '#000000',
+                        },
+                        textInputContainer: {
+                            backgroundColor: 'transparent',
+                            position: 'relative',
+                        },
                     }}
-                    predefinedPlaces={searchHistory.slice(0, 6).map(renderHistoryItem)}
-                    renderRow={(data, index) => {
-                        const isHistoryItem = searchHistory.some(
-                            item => item.searchQuery === data.description
-                        );
-                        return (
-                            <View style={[
-                                styles.suggestionRow,
-                                isHistoryItem && styles.historySuggestionRow
-                            ]}>
-                                {isHistoryItem && (
-                                    <MaterialIcons
-                                        name="history"
-                                        size={20}
-                                        color="#666"
-                                        style={styles.historyIcon}
-                                    />
-                                )}
-                                <Text style={[
-                                    styles.suggestionText,
-                                    isHistoryItem && styles.historySuggestionText
-                                ]}>
-                                    {data.description}
-                                </Text>
-                            </View>
-                        );
-                    }}
-                    listViewDisplayed="auto"
-                    minLength={3}
                     enablePoweredByContainer={false}
-                    debounce={200}
-                    filterReverseGeocodingByTypes={['locality', 'administrative_area_level_3']}
-                    renderDescription={(row) => row.description}
-                    onFail={(error) => console.error(error)}
-                    requestUrl={{
-                        url: 'https://maps.googleapis.com/maps/api',
-                        useOnPlatform: 'web',
-                    }}
-                    nearbyPlacesAPI="GooglePlacesSearch"
-                    GooglePlacesSearchQuery={{
-                        rankby: 'distance',
-                    }}
-                    GooglePlacesDetailsQuery={{
-                        fields: 'formatted_address,geometry',
-                    }}
-                    maxResults={6}
-                    textInputProps={{
-                        onChangeText: handleSearchTextChange
+                    fetchDetails={true}
+                    onFail={error => console.error(error)}
+                />
+                <MaterialIcons 
+                    name="search" 
+                    size={24} 
+                    color={isDarkMode ? '#8E8E93' : '#666666'} 
+                    style={{
+                        position: 'absolute',
+                        left: 15,
+                        top: 13,
+                        zIndex: 1,
                     }}
                 />
-                <TouchableOpacity
-                    style={styles.historyButton}
-                    onPress={() => {
-                        setShowHistory(!showHistory);
-                        if (!showHistory) {
-                            fetchSearchHistory();
-                        }
-                    }}
-                >
-                    <MaterialIcons name="history" size={24} color="black" />
-                </TouchableOpacity>
             </View>
+
+            <TouchableOpacity
+                style={styles.historyButton}
+                onPress={() => {
+                    setShowHistory(!showHistory);
+                    if (!showHistory) {
+                        fetchSearchHistory();
+                    }
+                }}
+            >
+                <MaterialIcons name="history" size={24} color={isDarkMode ? '#FFFFFF' : '#000000'} />
+            </TouchableOpacity>
 
             {showHistory && (
                 <View style={styles.historyPanel}>
@@ -151,8 +139,8 @@ const SearchBar = ({
                                     setShowHistory(false);
                                 }}
                             >
-                                <MaterialIcons name="history" size={20} color="gray" />
-                                <Text style={styles.historyText}>{item.searchQuery}</Text>
+                                <MaterialIcons name="history" size={20} color={isDarkMode ? '#8E8E93' : 'gray'} />
+                                <Text style={[styles.historyText, { color: isDarkMode ? '#FFFFFF' : '#000000' }]}>{item.searchQuery}</Text>
                             </TouchableOpacity>
                         ))}
                     </ScrollView>
