@@ -1,12 +1,16 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Switch, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, Switch, StyleSheet, Alert } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useTheme } from '../context/ThemeContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
+import { URL } from '@env';
+import { fetchSearchHistory } from '../services/driveHelpers';
 
-const Settings = ({ navigation }) => {
+const Settings = ({ navigation, route }) => {
     const { isDarkMode, toggleTheme } = useTheme();
     const [avoidTolls, setAvoidTolls] = useState(false);
+    const { setSearchHistory } = route.params || {};
 
     //load saved settings
     React.useEffect(() => {
@@ -32,6 +36,53 @@ const Settings = ({ navigation }) => {
         } catch (error) {
             console.error('Error saving settings:', error);
         }
+    };
+
+    const clearSearchHistory = async () => {
+        Alert.alert(
+            "Clear Search History",
+            "Are you sure you want to clear your search history?",
+            [
+                {
+                    text: "Cancel",
+                    style: "cancel"
+                },
+                {
+                    text: "Clear",
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            //get the token from AsyncStorage
+                            const token = await AsyncStorage.getItem('token');
+                            if (!token) {
+                                throw new Error('No authentication token found');
+                            }
+
+                            //delete from database
+                            await axios.delete(`${URL}/search-history`, {
+                                headers: {
+                                    'Authorization': `Bearer ${token}`
+                                }
+                            });
+
+                            // Update the search history state if the callback is provided
+                            if (setSearchHistory) {
+                                // Set to empty array immediately for instant UI update
+                                setSearchHistory([]);
+                                // Then fetch to ensure sync with server
+                                const updatedHistory = await fetchSearchHistory();
+                                setSearchHistory(updatedHistory);
+                            }
+                            
+                            Alert.alert("Success", "Search history has been cleared");
+                        } catch (error) {
+                            console.error('Error clearing search history:', error);
+                            Alert.alert("Error", "Failed to clear search history");
+                        }
+                    }
+                }
+            ]
+        );
     };
 
     const themeStyles = {
@@ -82,6 +133,15 @@ const Settings = ({ navigation }) => {
                     thumbColor={isDarkMode ? '#067ef5' : '#f4f3f4'}
                 />
             </View>
+
+            <TouchableOpacity 
+                style={themeStyles.settingItem}
+                onPress={clearSearchHistory}
+            >
+                <Text style={[themeStyles.settingText, { color: '#FF3B30' }]}>
+                    Clear Search History
+                </Text>
+            </TouchableOpacity>
         </View>
     );
 };

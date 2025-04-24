@@ -481,6 +481,7 @@ const NavigationPage = () => {
                 setShowHistory={setShowHistory}
                 fetchSearchHistory={fetchSearchHistory}
                 isInternationalSearch={isInternationalSearch}
+                setIsInternationalSearch={setIsInternationalSearch}
             />
 
             {/* 🗺️ Map View */}
@@ -571,6 +572,7 @@ const NavigationPage = () => {
                 setDestination={setDestination}
                 setInstructions={setInstructions}
                 setCurrentStepIndex={setCurrentStepIndex}
+                setSearchHistory={setSearchHistory}
             />
 
             {/* 🧭 Navigation Steps Bar */}

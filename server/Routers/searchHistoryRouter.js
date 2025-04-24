@@ -47,4 +47,14 @@ router.get('/search-history', authenticateToken, async (req, res) => {
     }
 });
 
+// Delete all search history for a user
+router.delete('/search-history', authenticateToken, async (req, res) => {
+    try {
+        await SearchHistory.deleteMany({ userId: req.user._id });
+        res.status(200).json({ message: 'Search history cleared successfully' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
 export default router; 

@@ -12,6 +12,7 @@ const MapPageMenu = ({
     setDestination,
     setInstructions,
     setCurrentStepIndex,
+    setSearchHistory,
 }) => {
     const { isDarkMode } = useTheme();
 
@@ -64,7 +65,7 @@ const MapPageMenu = ({
 
             <TouchableOpacity 
                 style={themeStyles.menuItem}
-                onPress={() => navigation.navigate('Settings')}
+                onPress={() => navigation.navigate('Settings', { setSearchHistory })}
             >
                 <MaterialIcons name="settings" size={24} color={themeStyles.icon} />
                 <Text style={themeStyles.text}>Settings</Text>
