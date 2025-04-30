@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useRoute } from '@react-navigation/native';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions, Keyboard, Linking, Alert, Image, ActivityIndicator, ScrollView } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import MapViewDirections from 'react-native-maps-directions';
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 import * as Location from 'expo-location';
@@ -26,8 +27,9 @@ import ReportPanel from './MapPageReportPanel.js';
 import VolunteerPanel from './MapPageVolounteerPanel.js';
 import { io } from 'socket.io-client';
 import { useTheme } from '../context/ThemeContext';
+import { Platform } from 'react-native';
 
-import {fetchVolunteerReports, calculateETA, cancelRide, getManeuverIcon, handleRecenter, renderHistoryItem, handleMenuToggle, getManeuverText, calculateDistanceToRoute, handleReport, saveSearchToHistory, fetchSearchHistory } from '../services/driveHelpers';
+import { fetchVolunteerReports, calculateETA, cancelRide, getManeuverIcon, handleRecenter, renderHistoryItem, handleMenuToggle, getManeuverText, calculateDistanceToRoute, handleReport, saveSearchToHistory, fetchSearchHistory } from '../services/driveHelpers';
 
 const googleMapsApiKey = MapsApiKey;
 
@@ -61,10 +63,29 @@ const NavigationPage = () => {
     const [searchQuery, setSearchQuery] = useState(''); //search query for autocomplete
     const [isInternationalSearch, setIsInternationalSearch] = useState(false);
     const [isStepsBar, setIsStepsBar] = useState(false); //boolean value to check whether steps bar is opened or not
-    const [events, setEvents] = useState([]); // Add this new state for events
+    const [events, setEvents] = useState([]); //add this new state for events
+    const [userHeading, setUserHeading] = useState(0); //track user's heading/direction
+    const [followsUserLocation, setFollowsUserLocation] = useState(false); // Track if map should follow user
+    const [isNavigating, setIsNavigating] = useState(false); //add this state to track if navigation is active
     const { isDarkMode } = useTheme();
+    const route = useRoute();
+    const { event, from } = route.params || {};
+    const [eventRoute, setEventRoute] = useState(false);
+    //new: reference to know if user moved map manually
+    const isUserInteracting = useRef(false);
+    //new: reference to save last camera center
+    const lastCamera = useRef({});
 
-
+    //compute bearing between two coords
+    const calculateBearing = (from, to) => {
+        const toRad = d => d * Math.PI / 180;
+        const toDeg = r => r * 180 / Math.PI;
+        const lat1 = toRad(from.latitude), lat2 = toRad(to.latitude);
+        const dLon = toRad(to.longitude - from.longitude);
+        const y = Math.sin(dLon) * Math.cos(lat2);
+        const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+        return (toDeg(Math.atan2(y, x)) + 360) % 360;
+    };
 
     //functions:
 
@@ -78,7 +99,24 @@ const NavigationPage = () => {
         handleMenuToggle(isMenuVisible, slideAnim, setIsMenuVisible);
     };
 
-    //useEffects:t
+    // Función para iniciar navegación con zoom fijo y rotación de mapa
+    const handleStartNavigation = () => {
+        if (isNavigating) return; //guard to prevent repeated starts
+        setIsNavigating(true);
+        setFollowsUserLocation(true);
+        if (origin && mapRef.current) {
+            //apply fixed zoom and orientation according to route
+            const next = routeCoordinates[1] || origin;
+            const initialBearing = calculateBearing(origin, next);
+            const cameraConfig = Platform.OS === 'ios'
+                ? { center: origin, heading: initialBearing, pitch: 0, altitude: 1000, duration: 700 }
+                : { center: origin, heading: initialBearing, pitch: 0, zoom: 20, duration: 700 };
+            mapRef.current.animateCamera(cameraConfig);
+            lastCamera.current = cameraConfig;
+        }
+    };
+
+    //useEffects:
 
     //check if token exists
     useEffect(() => {
@@ -102,49 +140,34 @@ const NavigationPage = () => {
         loadHistory();
     }, []);
 
-    //check and get location permission
     useEffect(() => {
-        (async () => {
-            const { status } = await Location.requestForegroundPermissionsAsync();
-            if (status !== 'granted') {
-                if (!isAlertShown.current) {
-                    isAlertShown.current = true;
-                    isLocationPermissionGranted.current = false;
-                    Alert.alert(
-                        'Location Permission Required',
-                        'Please enable location access in your settings.',
-                        [
-                            {
-                                text: 'Go to Settings',
-                                onPress: async () => {
-                                    isAlertShown.current = false;
-                                    Linking.openURL('app-settings:');
-                                    setRefreshFlag(prev => !prev);
-                                },
-                            },
-                            {
-                                text: 'Cancel',
-                                style: 'cancel',
-                                onPress: () => {
-                                    setRefreshFlag(prev => !prev);
-                                    isAlertShown.current = false;
-                                }
-                            },
-                        ]
-                    );
-                }
-            } else if (status === 'granted') {
-                isLocationPermissionGranted.current = true;
-                handleRecenter(setOrigin, setMapRegion);
+        const handleGoToLocation = async () => {
+            if (from === 'EventDetails' && event) {
+                console.log('User came from EventDetails');
+                console.log(event);
+                //update the origin in order to the other useEffect to work (responsible for steps bar showing up + finding correcting routes)
+                await handleRecenter(setOrigin, setMapRegion);
+                //set the destination
+                setDestination({
+                    latitude: event.location.latitude,
+                    longitude: event.location.longitude,
+                });
+                //start navigation to the event location
+                handleStartNavigation();
             }
-        })();
-    }, [refreshFlag]);
+        };
+        handleGoToLocation();
+    }, [event, from]);
 
     //set the steps of the first leg of the first route
-    //TO-DO later: avoid tolls documentation: https://developers.google.com/maps/documentation/directions/get-directions#avoid
+    //avoid tolls documentation: https://developers.google.com/maps/documentation/directions/get-directions#avoid
     //fetch directions for a new destination or forced reroute
     useEffect(() => {
+        console.log("test");
+        console.log(`origin: ${origin}`);
+        console.log(`destination: ${destination}`);
         if (!origin || !destination) return;
+        console.log("test2");
         const fetchDirections = async () => {
             try {
                 //get avoidTolls setting
@@ -193,7 +216,7 @@ const NavigationPage = () => {
             }
         };
         fetchDirections();
-    }, [destination, forceReroute]); //include forceReroute to allow re-fetch
+    }, [destination, forceReroute, eventRoute]); //include forceReroute to allow re-fetch
 
     useEffect(() => {
         if (!destination) {
@@ -216,31 +239,35 @@ const NavigationPage = () => {
                     timeInterval: 1000,
                     distanceInterval: 5,
                 }, location => {
+                    //skip low-accuracy updates
+                    if (location.coords.accuracy > 20) {
+                        console.log('Skipping low accuracy location update:', location.coords.accuracy);
+                        return;
+                    }
                     const currLoc = {
                         latitude: location.coords.latitude,
                         longitude: location.coords.longitude,
                     };
-                    const step = instructions[currentStepIndex];
                     setOrigin(currLoc);
 
                     //calculate distance to next step in meters
-                    const dLat = (step.endLocation.lat - currLoc.latitude) * 111000;
-                    const dLon = (step.endLocation.lng - currLoc.longitude) * 111000 * Math.cos(currLoc.latitude * Math.PI / 180);
+                    const dLat = (instructions[currentStepIndex].endLocation.lat - currLoc.latitude) * 111000;
+                    const dLon = (instructions[currentStepIndex].endLocation.lng - currLoc.longitude) * 111000 * Math.cos(currLoc.latitude * Math.PI / 180);
                     const distanceToNextStep = Math.sqrt(dLat * dLat + dLon * dLon);
 
                     //only check for off-route if we're not very close to the next step
                     if (distanceToNextStep > 30) {
-                        const offRouteByStep = distanceToNextStep > 150; // Increased threshold
+                        const offRouteByStep = distanceToNextStep > 150; 
                         let offRouteByRoute = false;
 
                         if (routeCoordinates.length) {
                             const distanceFromRoute = calculateDistanceToRoute(currLoc, routeCoordinates);
-                            offRouteByRoute = distanceFromRoute > 100; // Increased threshold
+                            offRouteByRoute = distanceFromRoute > 100;
                         }
 
                         const now = Date.now();
                         //only reroute if we're significantly off route and haven't rerouted recently
-                        if ((offRouteByStep || offRouteByRoute) && !isRerouting && now - lastRerouteTime.current > 30000) { // Increased cooldown to 30 seconds
+                        if ((offRouteByStep || offRouteByRoute) && !isRerouting && now - lastRerouteTime.current > 30000) { //cooldown 30 seconds
                             console.log('User off route. Recalculating...');
                             Speech.speak('Recalculating...');
                             setIsRerouting(true);
@@ -250,11 +277,30 @@ const NavigationPage = () => {
                     }
 
                     //move to next step if close enough
-                    if (distanceToNextStep < 30 && currentStepIndex < instructions.length - 1) {
-                        const nextStep = instructions[currentStepIndex + 1];
-                        Speech.speak(getManeuverText(nextStep.maneuver, nextStep.instruction));
-                        setCurrentStepIndex(prev => prev + 1);
+                    if (distanceToNextStep < 30) {
+                        const destinationReached =
+                            Math.abs(currLoc.latitude - destination.latitude) < 0.0002 &&
+                            Math.abs(currLoc.longitude - destination.longitude) < 0.0002;
+                    
+                        //stop navigation and announce arrival if at destination
+                        if (destinationReached || currentStepIndex === instructions.length - 1) {
+                            console.log('You have reached your destination.');
+                            Speech.speak('You have arrived at your destination.');
+                            setInstructions([]);
+                            setDestination(null);
+                            setIsNavigating(false);
+                            setFollowsUserLocation(false);
+                            return;
+                        }
+                    
+                        //otherwise, go to next step
+                        if (currentStepIndex < instructions.length - 1) {
+                            const nextStep = instructions[currentStepIndex + 1];
+                            Speech.speak(getManeuverText(nextStep.maneuver, nextStep.instruction));
+                            setCurrentStepIndex(prev => prev + 1);
+                        }
                     }
+                    
                 });
             } catch (error) {
                 console.error('Error setting up location tracking:', error);
@@ -268,7 +314,143 @@ const NavigationPage = () => {
                 subscription.remove();
             }
         };
-    }, [instructions, currentStepIndex]);
+    }, [instructions]);
+
+    useEffect(() => {
+        if (!destination) {
+            //clear route data when destination is removed (cancel navigation)
+            setRouteCoordinates([]);
+            setIsRerouting(false);
+        }
+    }, [destination]);
+
+    //handling the recenter button outside of navigation mode
+    useEffect(() => {
+        let watchSub = null; //holds the GPS subscription
+
+        const startTracking = async () => {
+            //asks for location permission
+            const { status } = await Location.requestForegroundPermissionsAsync();
+            if (status !== 'granted') return;
+
+            //start GPS tracking with balanced settings (not too aggressive)
+            watchSub = await Location.watchPositionAsync(
+                {
+                    accuracy: Location.Accuracy.Balanced,
+                    timeInterval: 3000,                    //max update rate: every 3 seconds
+                    distanceInterval: 10,                  //only update if moved 10 meters
+                },
+                location => {
+                    //this function is called whenever location changes
+                    const coords = {
+                        latitude: location.coords.latitude,
+                        longitude: location.coords.longitude,
+                    };
+                    setOrigin(coords); //update your state with current position
+                }
+            );
+        };
+
+        startTracking(); //launch tracking on mount
+
+        //clean up when screen unmounts
+        return () => {
+            if (watchSub) watchSub.remove();
+        };
+    }, []);
+
+
+
+    //unified heading tracking using Location.watchHeadingAsync for both Android and iOS
+    useEffect(() => {
+        let headingSubscription = null;
+        let lastUpdateTime = Date.now();
+        let lastHeading = userHeading;
+
+        const setupHeadingTracking = async () => {
+            try {
+                const { status } = await Location.requestForegroundPermissionsAsync();
+                if (status !== 'granted') {
+                    Alert.alert('Permission needed', 'Location permission required for navigation');
+                    return;
+                }
+                headingSubscription = await Location.watchHeadingAsync(headingData => {
+                    const now = Date.now();
+                    const newHeading = headingData.trueHeading || headingData.magHeading;
+                    const diff = ((newHeading - lastHeading + 540) % 360) - 180;
+                    const timeDiff = now - lastUpdateTime;
+                    const threshold = timeDiff > 1000 ? 4 : 7;
+                    if (Math.abs(diff) > threshold) {
+                        const smoothedHeading = (lastHeading + diff * 0.25 + 360) % 360;
+                        setUserHeading(smoothedHeading);
+                        lastHeading = smoothedHeading;
+                        lastUpdateTime = now;
+                        if (followsUserLocation && mapRef.current && origin && timeDiff > 250) {
+                            const cameraConfig = Platform.OS === 'ios'
+                                ? { center: origin, heading: smoothedHeading, pitch: 0, altitude: lastCamera.current.altitude || 1000, duration: 300 }
+                                : { center: origin, heading: smoothedHeading, pitch: 0, zoom: lastCamera.current.zoom || 20, duration: 300 };
+                            mapRef.current.animateCamera(cameraConfig);
+                            lastCamera.current = cameraConfig;
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Error setting up heading tracking:', error);
+            }
+        };
+
+        if (isNavigating) setupHeadingTracking();
+        return () => {
+            if (headingSubscription && headingSubscription.remove) headingSubscription.remove();
+        };
+    }, [isNavigating, followsUserLocation, origin]);
+
+    useEffect(() => {
+        if (destination && instructions.length > 0) {
+            if (!isNavigating) handleStartNavigation();
+        } else if (isNavigating) {
+            setIsNavigating(false);
+            setFollowsUserLocation(false);
+        }
+    }, [destination, instructions, isNavigating]);
+
+    //check and get location permission
+    useEffect(() => {
+        (async () => {
+            const { status } = await Location.requestForegroundPermissionsAsync();
+            if (status !== 'granted') {
+                if (!isAlertShown.current) {
+                    isAlertShown.current = true;
+                    isLocationPermissionGranted.current = false;
+                    Alert.alert(
+                        'Location Permission Required',
+                        'Please enable location access in your settings.',
+                        [
+                            {
+                                text: 'Go to Settings',
+                                onPress: async () => {
+                                    isAlertShown.current = false;
+                                    Linking.openURL('app-settings:');
+                                    setRefreshFlag(prev => !prev);
+                                },
+                            },
+                            {
+                                text: 'Cancel',
+                                style: 'cancel',
+                                onPress: () => {
+                                    setRefreshFlag(prev => !prev);
+                                    isAlertShown.current = false;
+                                }
+                            },
+                        ]
+                    );
+                }
+            } else if (status === 'granted') {
+                isLocationPermissionGranted.current = true;
+                handleRecenter(setOrigin, setMapRegion);
+            }
+        })();
+    }, [refreshFlag]);
 
     useEffect(() => {
         const checkUserType = async () => {
@@ -290,13 +472,13 @@ const NavigationPage = () => {
 
         const setupSocket = () => {
             socket = io(URL);
-        
+
             socket.on('connect', () => {
                 console.log('Connected to socket server');
             });
 
             socket.on('newEvent', async () => {
-                // Update both map events and volunteer reports
+                //update both map events and volunteer reports
                 await fetchEvents();
                 if (isVolunteerUser) {
                     await fetchVolunteerReports(setVolunteerReports);
@@ -304,7 +486,7 @@ const NavigationPage = () => {
             });
 
             socket.on('updateReports', async () => {
-                // Update both map events and volunteer reports
+                //update both map events and volunteer reports
                 await fetchEvents();
                 if (isVolunteerUser) {
                     await fetchVolunteerReports(setVolunteerReports);
@@ -388,6 +570,19 @@ const NavigationPage = () => {
         return () => clearInterval(interval);
     }, [instructions, routeCoordinates]);
 
+    useEffect(() => {
+        if (destination && instructions.length > 0) {
+            // only start navigation once
+            if (!isNavigating) handleStartNavigation();
+        } else {
+            // only reset when currently navigating
+            if (isNavigating) {
+                setIsNavigating(false);
+                setFollowsUserLocation(false);
+            }
+        }
+    }, [destination, instructions, isNavigating]);
+
     //update ETA when steps or current step changes
     useEffect(() => {
         if (instructions.length > 0) {
@@ -408,7 +603,7 @@ const NavigationPage = () => {
         setIsInternationalSearch(isInternational);
     };
 
-    // Add this function to fetch events
+    //function to fetch events
     const fetchEvents = async () => {
         if (origin) {
             try {
@@ -421,24 +616,24 @@ const NavigationPage = () => {
         }
     };
 
-    // Add useEffect to fetch events when origin changes
+    //useEffect to fetch events when origin changes
     useEffect(() => {
         fetchEvents();
     }, [origin]);
 
-    // Add periodic refresh for events when volunteer panel is visible
+    //periodic refresh for events when volunteer panel is visible
     useEffect(() => {
         let interval;
         if (isVolunteerUser && showVolunteerPanel) {
-            // Initial fetch
+            //initial fetch
             fetchEvents();
             fetchVolunteerReports(setVolunteerReports);
-            
-            // Set up interval for periodic refresh
+
+            //set up interval for periodic refresh
             interval = setInterval(() => {
                 fetchEvents();
                 fetchVolunteerReports(setVolunteerReports);
-            }, 60000); // Refresh every minute
+            }, 60000); //refresh every minute
         }
 
         return () => {
@@ -448,7 +643,7 @@ const NavigationPage = () => {
         };
     }, [isVolunteerUser, showVolunteerPanel]);
 
-    // Conditional rendering: show loading screen
+    //conditional rendering: show loading screen
     if (isCheckingToken) {
         return (
             <View>
@@ -457,7 +652,7 @@ const NavigationPage = () => {
         );
     }
 
-    // Conditional rendering: block app if location permission is not granted
+    //conditional rendering: block app if location permission is not granted
     if (!isLocationPermissionGranted.current) {
         return (
             <View>
@@ -487,12 +682,29 @@ const NavigationPage = () => {
             {/* 🗺️ Map View */}
             {mapRegion && (
                 <MapView
+                    provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+                    rotateEnabled={true}
+                    pitchEnabled={false}
                     ref={mapRef}
                     style={styles.map}
-                    region={mapRegion}
-                    showsUserLocation={true}
-                    followsUserLocation={true}
+                    initialRegion={mapRegion}
+                    showsUserLocation={!isNavigating}
+                    showsUserHeadingIndicator={true}
+                    followsUserLocation={followsUserLocation}
+                    userLocationUpdateInterval={1000}
+                    userLocationFastestInterval={1000}
+                    showsCompass={true}
+                    loadingEnabled={true}
                     showsMyLocationButton={false}
+                    onPanDrag={() => {
+                        if (isNavigating && followsUserLocation) {
+                            isUserInteracting.current = true;
+                            // On Android, keep following to preserve native blue arrow
+                            if (Platform.OS !== 'android') {
+                                setFollowsUserLocation(false);
+                            }
+                        }
+                    }}
                 >
                     {/* 📍 Destination Marker */}
                     {destination && <Marker coordinate={destination} title="Destination" />}
@@ -505,10 +717,9 @@ const NavigationPage = () => {
                             apikey={googleMapsApiKey}
                             strokeWidth={4}
                             strokeColor="blue"
-                            onReady={(result) => {
-                                mapRef.current?.fitToCoordinates(result.coordinates, {
-                                    edgePadding: { top: 80, right: 50, bottom: 50, left: 50 },
-                                });
+                            onReady={() => {
+                                //avoid zoom out; start navigation with fixed camera
+                                handleStartNavigation();
                             }}
                         />
                     )}
@@ -525,29 +736,28 @@ const NavigationPage = () => {
                             description={`Distance: ${event.distance.toFixed(2)} km`}
                         >
                             <View style={styles.eventMarker}>
-                                <MaterialCommunityIcons 
-                                    name="alert-circle" 
-                                    size={30} 
+                                <MaterialCommunityIcons
+                                    name="alert-circle"
+                                    size={30}
                                     color="#ff4444"
                                 />
                             </View>
                         </Marker>
                     ))}
-                </MapView>
-            )}
 
-            {/* 📍 Recenter Button */}
-            {!isMenuVisible && (
-                <TouchableOpacity
-                    style={isDarkMode ? styles.recenterButtonDark : styles.recenterButton}
-                    onPress={() => handleRecenter(setOrigin, setMapRegion)}
-                >
-                    <MaterialIcons 
-                        name="my-location" 
-                        size={24} 
-                        style={isDarkMode ? styles.recenterIconDark : styles.recenterIconLight} 
-                    />
-                </TouchableOpacity>
+                    {/* Flecha de dirección sobre el usuario */}
+                    {isNavigating && origin && (
+                        <Marker
+                            key="navigation-arrow"
+                            coordinate={origin}
+                            anchor={{ x: 0.5, y: 0.5 }}
+                            flat={true}
+                            rotation={userHeading}
+                        >
+                            <MaterialIcons name="navigation" size={36} color="#1976D2" />
+                        </Marker>
+                    )}
+                </MapView>
             )}
 
             {/* ☰ Menu Button */}
@@ -556,10 +766,43 @@ const NavigationPage = () => {
                     style={isDarkMode ? styles.menuDark : styles.menu}
                     onPress={handleMenu}
                 >
-                    <Entypo 
-                        name="menu" 
-                        size={24} 
-                        style={isDarkMode ? styles.menuIconDark : styles.menuIconLight} 
+                    <Entypo
+                        name="menu"
+                        size={24}
+                        style={isDarkMode ? styles.menuIconDark : styles.menuIconLight}
+                    />
+                </TouchableOpacity>
+            )}
+
+            {/* 🔄 Recenter Button */}
+            {!isMenuVisible && (
+                <TouchableOpacity
+                    style={isDarkMode ? styles.recenterButtonDark : styles.recenterButton}
+                    onPress={async () => {
+                        let coords = origin;
+
+                        if (!coords) {
+                            const location = await Location.getCurrentPositionAsync({});
+                            coords = {
+                                latitude: location.coords.latitude,
+                                longitude: location.coords.longitude,
+                            };
+                            setOrigin(coords);
+                        }
+
+                        if (coords && mapRef.current) {
+                            mapRef.current.animateCamera({
+                                center: coords,
+                                zoom: 15,
+                                duration: 700,
+                            });
+                        }
+                    }}
+                >
+                    <MaterialIcons
+                        name="my-location"
+                        size={24}
+                        style={isDarkMode ? styles.recenterIconDark : styles.recenterIconLight}
                     />
                 </TouchableOpacity>
             )}
@@ -590,17 +833,17 @@ const NavigationPage = () => {
             />
 
             {/* ➕ Add Event Button */}
-            {!isMenuVisible && !showReportPanel && (
-                <TouchableOpacity 
-                    onPress={handleAddEvent} 
+            {!isMenuVisible && (
+                <TouchableOpacity
                     style={
-                        !isStepsBar 
+                        !isStepsBar
                             ? (isDarkMode ? styles.addEventButtonDark : styles.addEventButton)
-                            : (showAllSteps 
+                            : (showAllSteps
                                 ? (isDarkMode ? styles.addEventButtonFullStepsBarDark : styles.addEventButtonFullStepsBar)
                                 : (isDarkMode ? styles.addEventButtonStepsBarDark : styles.addEventButtonStepsBar)
                             )
                     }
+                    onPress={handleAddEvent}
                 >
                     <Image
                         source={require('../images/add_new_event_to_map.webp')}

@@ -290,7 +290,7 @@ const EventDetailsScreen = () => {
 
                     <TouchableOpacity 
                         style={[styles.checkDetailsButton, { backgroundColor: isDarkMode ? '#007AFF' : '#007AFF' }]}
-                        onPress={() => navigation.navigate('EventDetails', { event })}
+                        onPress={() => navigation.navigate('MapPage', { event, from: 'EventDetails' })}
                     >
                         <Text style={styles.checkDetailsButtonText}>Go to Location</Text>
                     </TouchableOpacity>
