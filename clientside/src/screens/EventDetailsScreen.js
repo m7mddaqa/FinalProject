@@ -23,22 +23,22 @@ const EventDetailsScreen = () => {
 
     const getImageUrl = () => {
         if (!event.image) return null;
-        
+
         //if the image path is already a full URL, return it as is
         if (event.image.startsWith('http')) {
             return event.image;
         }
-        
+
         //if the image path already starts with /api/uploads, just prepend the base URL
         if (event.image.startsWith('/api/uploads/')) {
             return `${URL}${event.image}`;
         }
-        
+
         //if the image path starts with /uploads, replace it with /api/uploads
         if (event.image.startsWith('/uploads/')) {
             return `${URL}/api${event.image}`;
         }
-        
+
         //otherwise, construct the full URL
         return `${URL}/api/uploads/${event.image}`;
     };
@@ -47,27 +47,27 @@ const EventDetailsScreen = () => {
         try {
             if (videoUrl) {
                 const fullVideoUrl = videoUrl.startsWith('http') ? videoUrl : `${URL}${videoUrl}`;
-                
+
                 //test if the URL is accessible
-                const response = await fetch(fullVideoUrl, { 
+                const response = await fetch(fullVideoUrl, {
                     method: 'HEAD',
                     headers: {
                         'Accept': 'video/mp4,video/*;q=0.9,*/*;q=0.8'
                     }
                 });
-                
+
                 if (!response.ok) {
                     //if the URL contains /api/uploads, try without /api
                     if (fullVideoUrl.includes('/api/uploads/')) {
                         const altUrl = fullVideoUrl.replace('/api/uploads/', '/uploads/');
-                        
+
                         const altResponse = await fetch(altUrl, {
                             method: 'HEAD',
                             headers: {
                                 'Accept': 'video/mp4,video/*;q=0.9,*/*;q=0.8'
                             }
                         });
-                        
+
                         if (altResponse.ok) {
                             setVideoLoading(true);
                             setVideoError(false);
@@ -75,10 +75,10 @@ const EventDetailsScreen = () => {
                             return;
                         }
                     }
-                    
+
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
-                
+
                 setVideoLoading(true);
                 setVideoError(false);
                 setSelectedVideo(fullVideoUrl);
@@ -103,6 +103,7 @@ const EventDetailsScreen = () => {
             setVideoLoading(false);
         }
     };
+
 
     const renderVideoModal = () => {
         if (!selectedVideo) return null;
@@ -140,7 +141,7 @@ const EventDetailsScreen = () => {
                             <View style={styles.videoErrorContainer}>
                                 <Text style={styles.errorText}>Failed to load video</Text>
                                 <Text style={styles.errorSubtext}>Please check your connection and try again</Text>
-                                <TouchableOpacity 
+                                <TouchableOpacity
                                     style={styles.retryButton}
                                     onPress={() => handleVideoPress(getImageUrl())}
                                 >
@@ -181,7 +182,7 @@ const EventDetailsScreen = () => {
         if (isVideo) {
             const videoUrl = getImageUrl();
             return (
-                <TouchableOpacity 
+                <TouchableOpacity
                     style={styles.videoContainer}
                     onPress={() => handleVideoPress(videoUrl)}
                 >
@@ -206,11 +207,11 @@ const EventDetailsScreen = () => {
                         <ActivityIndicator size="large" color="#007AFF" />
                     </View>
                 )}
-                <Image 
-                    source={{ 
+                <Image
+                    source={{
                         uri: getImageUrl(),
                         cache: 'force-cache'
-                    }} 
+                    }}
                     style={styles.eventImage}
                     resizeMode="contain"
                     onLoadStart={() => {
@@ -238,7 +239,7 @@ const EventDetailsScreen = () => {
     return (
         <View style={[styles.container, { backgroundColor: isDarkMode ? '#121212' : '#fff' }]}>
             <View style={styles.header}>
-                <TouchableOpacity 
+                <TouchableOpacity
                     style={styles.backButton}
                     onPress={() => navigation.goBack()}
                 >
@@ -248,21 +249,21 @@ const EventDetailsScreen = () => {
                     Event Details
                 </Text>
             </View>
-            
+
             <ScrollView style={styles.content}>
                 {renderMedia()}
-                
+
                 <View style={styles.detailsContainer}>
                     <Text style={[styles.eventType, { color: isDarkMode ? '#fff' : '#000' }]}>
                         {event.type}
                     </Text>
-                    
+
                     {event.description && (
                         <Text style={[styles.description, { color: isDarkMode ? '#ccc' : '#666' }]}>
                             {event.description}
                         </Text>
                     )}
-                    
+
                     <View style={styles.infoContainer}>
                         <View style={styles.infoRow}>
                             <Ionicons name="time-outline" size={20} color={isDarkMode ? '#ccc' : '#666'} />
@@ -270,14 +271,14 @@ const EventDetailsScreen = () => {
                                 {new Date(event.createdAt).toLocaleString()}
                             </Text>
                         </View>
-                        
+
                         <View style={styles.infoRow}>
                             <Ionicons name="person-outline" size={20} color={isDarkMode ? '#ccc' : '#666'} />
                             <Text style={[styles.infoText, { color: isDarkMode ? '#ccc' : '#666' }]}>
                                 Reported by: {event.userInfo?.name || 'Anonymous User'}
                             </Text>
                         </View>
-                        
+
                         {event.distance !== undefined && (
                             <View style={styles.infoRow}>
                                 <Ionicons name="location-outline" size={20} color={isDarkMode ? '#ccc' : '#666'} />
@@ -286,9 +287,24 @@ const EventDetailsScreen = () => {
                                 </Text>
                             </View>
                         )}
+
+                        <View style={styles.infoRow}>
+                            <Ionicons name="navigate-outline" size={20} color={isDarkMode ? '#ccc' : '#666'} />
+                            <Text style={[styles.infoText, { color: isDarkMode ? '#ccc' : '#666' }]}>
+                                {event.OnWayVolunteers.count} volunteers are on their way
+                            </Text>
+                        </View>
+                        
+                        <View style={styles.infoRow}>
+                            <Ionicons name="checkmark-circle-outline" size={20} color={isDarkMode ? '#ccc' : '#666'} />
+                            <Text style={[styles.infoText, { color: isDarkMode ? '#ccc' : '#666' }]}>
+                                {event.ArrivedVolunteers.count} volunteers have arrived
+                            </Text>
+                        </View>
+
                     </View>
 
-                    <TouchableOpacity 
+                    <TouchableOpacity
                         style={[styles.checkDetailsButton, { backgroundColor: isDarkMode ? '#007AFF' : '#007AFF' }]}
                         onPress={() => navigation.navigate('MapPage', { event, from: 'EventDetails' })}
                     >
@@ -296,7 +312,7 @@ const EventDetailsScreen = () => {
                     </TouchableOpacity>
                 </View>
             </ScrollView>
-            
+
             {renderVideoModal()}
         </View>
     );

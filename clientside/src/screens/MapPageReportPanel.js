@@ -42,6 +42,11 @@ const ReportPanel = ({ setShowReportPanel, setVolunteerReports, showAllSteps }) 
                         navigation.navigate('ReportDetails', { reportType });
                     },
                 },
+                {
+                    text: 'Cancel',
+                    onPress: () => console.log('report cancel Pressed'),
+                    style: 'cancel',
+                },
             ],
             { cancelable: true }
         );

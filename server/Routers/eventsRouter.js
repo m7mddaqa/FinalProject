@@ -169,4 +169,112 @@ router.put('/events/:id/resolve', async (req, res) => {
   }
 });
 
+router.put('/events/:id/incrementOnWayVolunteers', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ error: 'Missing authorization token' });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const { id } = req.params;
+    const event = await Event.findById(id);
+
+    if (!event) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+
+    //check if the user is already in the list of on-way volunteers
+    if (event.OnWayVolunteers.users.includes(decoded.id)) {
+      return res.status(400).json({ error: 'User already on the way' });
+    }
+    //increment the number of volunteers on the way
+    event.OnWayVolunteers.count++;
+    //add the volunteer to the list of users on the way
+    event.OnWayVolunteers.users.push(decoded.id);
+    await event.save();
+    const io = req.app.get('io');
+    io.emit('updateReports'); //notify all frontend clients via sockets
+
+    res.json({ message: 'Incremented the volunteers on the way to the event' });
+  } catch (err) {
+    console.error('[ERROR] Failed to increment on going volunteers:', err.message);
+    res.status(500).json({ error: 'Failed to increment on going volunteers' });
+  }
+}
+);
+
+
+router.put('/events/:id/decrementOnWayVolunteers', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ error: 'Missing authorization token' });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const { id } = req.params;
+    const event = await Event.findById(id);
+
+    if (!event) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+
+    //check if the user is in the list of on-way volunteers
+    if (!event.OnWayVolunteers.users.includes(decoded.id)) {
+      return res.status(400).json({ error: 'User not on the way' });
+    }
+    //decrement the number of volunteers on the way
+    event.OnWayVolunteers.count--;
+    //remove the volunteer from the list of users on the way
+    event.OnWayVolunteers.users = event.OnWayVolunteers.users.filter(user => user.toString() !== decoded.id);
+    await event.save();
+    const io = req.app.get('io');
+    io.emit('updateReports'); //notify all frontend clients via sockets
+
+    res.json({ message: 'Decremented the volunteers on the way to the event' });
+  } catch (err) {
+    console.error('[ERROR] Failed to decrement on going volunteers:', err.message);
+    res.status(500).json({ error: 'Failed to decrement on going volunteers' });
+  }
+}
+);
+
+router.put('/events/:id/incrementArrivedVolunteers', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ error: 'Missing authorization token' });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const { id } = req.params;
+    const event = await Event.findById(id);
+
+    if (!event) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+
+    //check if the user is already in the list of on-way volunteers
+    if (event.ArrivedVolunteers.users.includes(decoded.id)) {
+      return res.status(400).json({ error: 'User has already arrived' });
+    }
+    //increment the number of volunteers on the way
+    event.ArrivedVolunteers.count++;
+    //add the volunteer to the list of users on the way
+    event.ArrivedVolunteers.users.push(decoded.id);
+    await event.save();
+    const io = req.app.get('io');
+    io.emit('updateReports'); //notify all frontend clients via sockets
+
+    res.json({ message: 'Incremented the numbers of arrived volunteers to the event' });
+  } catch (err) {
+    console.error('[ERROR] Failed to increment the arrived volunteers:', err.message);
+    res.status(500).json({ error: 'Failed to increment the arrived volunteers' });
+  }
+}
+);
+
+
+
 export default router;

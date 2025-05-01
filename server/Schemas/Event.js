@@ -47,6 +47,14 @@ const EventSchema = new mongoose.Schema({
         enum: ['pending', 'verified', 'rejected'],
         default: 'pending'
     },
+    OnWayVolunteers: {
+        users: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+        count: { type: Number, default: 0 }
+    },
+    ArrivedVolunteers: {
+        users: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+        count: { type: Number, default: 0 }
+    },
     createdAt: {
         type: Date,
         default: Date.now,

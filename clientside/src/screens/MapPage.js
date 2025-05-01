@@ -24,12 +24,12 @@ import MapPageMenu from './MapPageMenu.js';
 import StepsBar from './MapPageStepsBar.js';
 import SearchBar from './MapPageSearchaBar.js';
 import ReportPanel from './MapPageReportPanel.js';
-import VolunteerPanel from './MapPageVolounteerPanel.js';
+import VolunteerPanel from './MapPageVolunteerPanel.js';
 import { io } from 'socket.io-client';
 import { useTheme } from '../context/ThemeContext';
 import { Platform } from 'react-native';
 
-import { fetchVolunteerReports, calculateETA, cancelRide, getManeuverIcon, handleRecenter, renderHistoryItem, handleMenuToggle, getManeuverText, calculateDistanceToRoute, handleReport, saveSearchToHistory, fetchSearchHistory } from '../services/driveHelpers';
+import {incrementArrivedVolunteers, incrementOnWayVolunteers,decrementOnWayVolunteers,fetchVolunteerReports, calculateETA, cancelRide, getManeuverIcon, handleRecenter, renderHistoryItem, handleMenuToggle, getManeuverText, calculateDistanceToRoute, handleReport, saveSearchToHistory, fetchSearchHistory } from '../services/driveHelpers';
 
 const googleMapsApiKey = MapsApiKey;
 
@@ -67,6 +67,7 @@ const NavigationPage = () => {
     const [userHeading, setUserHeading] = useState(0); //track user's heading/direction
     const [followsUserLocation, setFollowsUserLocation] = useState(false); // Track if map should follow user
     const [isNavigating, setIsNavigating] = useState(false); //add this state to track if navigation is active
+    const [isVolunteerOnWay, setIsVolunteerOnWay] = useState(false); //add this state to track if the volunteer is on his way to an event
     const { isDarkMode } = useTheme();
     const route = useRoute();
     const { event, from } = route.params || {};
@@ -99,7 +100,9 @@ const NavigationPage = () => {
         handleMenuToggle(isMenuVisible, slideAnim, setIsMenuVisible);
     };
 
-    // Función para iniciar navegación con zoom fijo y rotación de mapa
+
+
+    //function to start navigation with fixed zoom and map rotation.
     const handleStartNavigation = () => {
         if (isNavigating) return; //guard to prevent repeated starts
         setIsNavigating(true);
@@ -152,6 +155,12 @@ const NavigationPage = () => {
                     latitude: event.location.latitude,
                     longitude: event.location.longitude,
                 });
+
+
+                //usestate variable just to know whether the volunteer is navigating to an event or not, we could use it to change
+                //the number of ongoing volunteers in case he cancelled the navigation or if he has arrived, additionally to increment the arrivedVolunteers field
+                setIsVolunteerOnWay(true);
+                incrementOnWayVolunteers(event._id); //increment the number of ongoing volunteers
                 //start navigation to the event location
                 handleStartNavigation();
             }
@@ -221,6 +230,10 @@ const NavigationPage = () => {
     useEffect(() => {
         if (!destination) {
             //clear route data when destination is removed (cancel navigation)
+            if(isVolunteerOnWay) {
+                decrementOnWayVolunteers(event._id); //decrement the number of ongoing volunteers
+                setIsVolunteerOnWay(false);
+            }
             setRouteCoordinates([]);
             setIsRerouting(false);
         }
@@ -257,7 +270,7 @@ const NavigationPage = () => {
 
                     //only check for off-route if we're not very close to the next step
                     if (distanceToNextStep > 30) {
-                        const offRouteByStep = distanceToNextStep > 150; 
+                        const offRouteByStep = distanceToNextStep > 150;
                         let offRouteByRoute = false;
 
                         if (routeCoordinates.length) {
@@ -281,18 +294,22 @@ const NavigationPage = () => {
                         const destinationReached =
                             Math.abs(currLoc.latitude - destination.latitude) < 0.0002 &&
                             Math.abs(currLoc.longitude - destination.longitude) < 0.0002;
-                    
+
                         //stop navigation and announce arrival if at destination
                         if (destinationReached || currentStepIndex === instructions.length - 1) {
                             console.log('You have reached your destination.');
                             Speech.speak('You have arrived at your destination.');
                             setInstructions([]);
+                            setIsVolunteerOnWay(false);
                             setDestination(null);
                             setIsNavigating(false);
                             setFollowsUserLocation(false);
+                            console.log("incrementing arrived volunteer");
+                            incrementArrivedVolunteers(event._id); //increment the number of arrived volunteers
+                            decrementOnWayVolunteers(event._id); //remove the arrived user from the "on way" volunteers since he has arrived
                             return;
                         }
-                    
+
                         //otherwise, go to next step
                         if (currentStepIndex < instructions.length - 1) {
                             const nextStep = instructions[currentStepIndex + 1];
@@ -300,7 +317,7 @@ const NavigationPage = () => {
                             setCurrentStepIndex(prev => prev + 1);
                         }
                     }
-                    
+
                 });
             } catch (error) {
                 console.error('Error setting up location tracking:', error);
@@ -315,14 +332,6 @@ const NavigationPage = () => {
             }
         };
     }, [instructions]);
-
-    useEffect(() => {
-        if (!destination) {
-            //clear route data when destination is removed (cancel navigation)
-            setRouteCoordinates([]);
-            setIsRerouting(false);
-        }
-    }, [destination]);
 
     //handling the recenter button outside of navigation mode
     useEffect(() => {
@@ -745,7 +754,7 @@ const NavigationPage = () => {
                         </Marker>
                     ))}
 
-                    {/* Flecha de dirección sobre el usuario */}
+                    {/*Heading arrow on the user location */}
                     {isNavigating && origin && (
                         <Marker
                             key="navigation-arrow"

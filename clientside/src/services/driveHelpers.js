@@ -427,3 +427,69 @@ export const renderHistoryItem = (item) => ({
         }
     }
 });
+
+
+    //function to increment the number of ongoing volunteers to an event
+export  const incrementOnWayVolunteers = async (eventId) => {
+        console.log('Incrementing for event:', eventId);
+        try {
+            const token = await AsyncStorage.getItem('token');
+            const response = await axios.put(`${URL}/api/events/${eventId}/incrementOnWayVolunteers`, {}, {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
+            console.log(`Success status: ${response.status}`);
+            console.log('Volunteer added successfully!');
+        } catch (error) {
+            if (error.response) {
+                console.log(`Error status: ${error.response.status}`);
+                console.log(`Error message: ${error.response.data?.error}`);
+            } else {
+                console.error('Unexpected error:', error.message);
+            }
+        }
+    };
+    
+    //function to decrement the number of ongoing volunteers to an event
+export const decrementOnWayVolunteers = async (eventId) => {
+    console.log('Decrement for event:', eventId);
+    try {
+        const token = await AsyncStorage.getItem('token');
+        const response = await axios.put(`${URL}/api/events/${eventId}/decrementOnWayVolunteers`, {}, {
+            headers: {
+                Authorization: `Bearer ${token}`
+            }
+        });
+        console.log(`Success status: ${response.status}`);
+        console.log('Volunteer removed successfully!');
+    } catch (error) {
+        if (error.response) {
+            console.log(`Error status: ${error.response.status}`);
+            console.log(`Error message: ${error.response.data?.error}`);
+        } else {
+            console.error('Unexpected error:', error.message);
+        }
+    }
+    };
+
+export const incrementArrivedVolunteers = async (eventId) => {
+    console.log('Incrementing for event:', eventId);
+    try {
+        const token = await AsyncStorage.getItem('token');
+        const response = await axios.put(`${URL}/api/events/${eventId}/incrementArrivedVolunteers`, {}, {
+            headers: {
+                Authorization: `Bearer ${token}`
+            }
+        });
+        console.log(`Success status: ${response.status}`);
+        console.log('Volunteer added successfully!');
+    } catch (error) {
+        if (error.response) {
+            console.log(`Error status: ${error.response.status}`);
+            console.log(`Error message: ${error.response.data?.error}`);
+        } else {
+            console.error('Unexpected error:', error.message);
+        }
+    }
+};
