@@ -169,6 +169,17 @@ router.put('/events/:id/resolve', async (req, res) => {
   }
 });
 
+//check if event still exists/active
+router.get('/events/:id/findIfEventActive', async (req, res) => {
+  const { id } = req.params;
+  const event = await Event.findById(id);
+  if (!event) {
+    return res.status(404).json({ error: 'Event not found' });
+  }
+  res.json(event);
+}
+);
+
 router.put('/events/:id/incrementOnWayVolunteers', async (req, res) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];

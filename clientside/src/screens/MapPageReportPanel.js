@@ -17,10 +17,13 @@ const ReportPanel = ({ setShowReportPanel, setVolunteerReports, showAllSteps }) 
         { icon: require('../assets/traffic-jam.png'), label: 'Traffic Jam' },
         { icon: require('../assets/police.png'), label: 'Police' },
         { icon: require('../assets/accident.png'), label: 'Accident' },
-        { icon: require('../assets/hazard.png'), label: 'Hazard' },
         { icon: require('../assets/injured.png'), label: 'Injured' },
         { icon: require('../assets/fire.png'), label: 'Fire' },
-    ];
+        { icon: require('../assets/rocket.png'), label: 'Rockets' },
+        { icon: require('../assets/earthquake.png'), label: 'Earthquake' },
+        { icon: require('../assets/flood.png'), label: 'Flood' },
+        { icon: require('../assets/unsafeBuilding.png'), label: 'Unsafe Building' },
+        ];
 
     const handleReportPress = (reportType) => {
         Alert.alert(
@@ -52,6 +55,7 @@ const ReportPanel = ({ setShowReportPanel, setVolunteerReports, showAllSteps }) 
         );
     };
 
+    //possible delete?
     useEffect(() => {
         const unsubscribe = navigation.addListener('focus', () => {
             //reset any necessary state when returning to this screen

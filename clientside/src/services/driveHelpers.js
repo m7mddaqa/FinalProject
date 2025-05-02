@@ -473,6 +473,7 @@ export const decrementOnWayVolunteers = async (eventId) => {
     }
     };
 
+    //function to increment the number of arrived volunteers to an event
 export const incrementArrivedVolunteers = async (eventId) => {
     console.log('Incrementing for event:', eventId);
     try {
@@ -491,5 +492,31 @@ export const incrementArrivedVolunteers = async (eventId) => {
         } else {
             console.error('Unexpected error:', error.message);
         }
+    }
+};
+
+//compute bearing between two coords
+export const calculateBearing = (from, to) => {
+    const toRad = d => d * Math.PI / 180;
+    const toDeg = r => r * 180 / Math.PI;
+    const lat1 = toRad(from.latitude), lat2 = toRad(to.latitude);
+    const dLon = toRad(to.longitude - from.longitude);
+    const y = Math.sin(dLon) * Math.cos(lat2);
+    const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+    return (toDeg(Math.atan2(y, x)) + 360) % 360;
+};
+
+//function to get the icon for the event type on map as marker
+export const getEventIcon = (type) => {
+    switch (type.toLowerCase()) {
+        case 'traffic jam': return require('../assets/traffic-jam.png');
+        case 'police': return require('../assets/police.png');
+        case 'accident': return require('../assets/accident.png');
+        case 'injured': return require('../assets/injured.png');
+        case 'fire': return require('../assets/fire.png');
+        case 'rockets': return require('../assets/rocket.png');
+        case 'earthquake': return require('../assets/earthquake.png');
+        case 'flood': return require('../assets/flood.png');
+        case 'unsafe building': return require('../assets/unsafeBuilding.png');
     }
 };

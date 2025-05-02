@@ -127,17 +127,6 @@ const SearchBar = ({
                         onChangeText: handleSearchTextChange
                     }}
                 />
-                <TouchableOpacity
-                    style={isDarkMode ? styles.historyButtonDark : styles.historyButton}
-                    onPress={() => {
-                        setShowHistory(!showHistory);
-                        if (!showHistory) {
-                            fetchSearchHistory();
-                        }
-                    }}
-                >
-                    <MaterialIcons name="history" size={24} color={isDarkMode ? "#fff" : "black"} />
-                </TouchableOpacity>
             </View>
 
             {showHistory && (
