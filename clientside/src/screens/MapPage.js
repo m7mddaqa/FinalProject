@@ -79,9 +79,33 @@ const NavigationPage = () => {
 
     //functions:
 
-    const handleAddEvent = () => {
-        setShowVolunteerPanel(false); //close volunteer panel first
-        setShowReportPanel(prev => !prev);
+    const handleAddEvent = async () => {
+        try {
+            const token = await isLoggedIn();
+            if (!token) {
+                Alert.alert(
+                    'You need to be logged in to add a report.',
+                    'Please log in to your account.',
+                    [
+                        {
+                            text: 'OK',
+                            onPress: () => navigation.navigate('LoginPage'),
+                        },
+                        {
+                            text: 'Cancel',
+                            onPress: () => console.log('cancel adding report'),
+                            style: 'cancel',
+                        },
+                    ],
+                    { cancelable: true }
+                );
+                return;
+            }
+            setShowVolunteerPanel(false);
+            setShowReportPanel(prev => !prev);
+        } catch (error) {
+            console.error("Error in handleAddEvent:", error);
+        }
     };
 
     //opening menu function + animation
@@ -171,10 +195,12 @@ const NavigationPage = () => {
     useEffect(() => {
         (async () => {
             const token = await isLoggedIn();
-            if (!token) navigation.replace('Home');
+            if (!token){
             setIsCheckingToken(false);
+            }
         })();
     }, []);
+
     //add useEffect to update isStepsBar state
     useEffect(() => {
         setIsStepsBar(instructions.length > 0 || showAllSteps);
@@ -529,14 +555,15 @@ const NavigationPage = () => {
 
     useEffect(() => {
         const checkUserType = async () => {
-            console.log('Checking user type...');
-            const volunteerStatus = await isVolunteer();
-            console.log('Volunteer status:', volunteerStatus);
-            setIsVolunteerUser(volunteerStatus);
-            if (volunteerStatus) {
-                console.log('Fetching volunteer reports...');
-                fetchVolunteerReports(setVolunteerReports);
+            const token = await isLoggedIn();
+            if (!token) {
+                setIsCheckingToken(false);
+                setIsVolunteerUser(false);
+                return;
             }
+            const volunteerStatus = await isVolunteer();
+            setIsVolunteerUser(volunteerStatus === true);
+            setIsCheckingToken(false);
         };
         checkUserType();
     }, []);
@@ -662,14 +689,14 @@ const NavigationPage = () => {
         };
     }, [isVolunteerUser, showVolunteerPanel]);
 
-    //conditional rendering: show loading screen
-    if (isCheckingToken) {
-        return (
-            <View>
-                <Text style={styles.loadingText}>Loading...</Text>
-            </View>
-        );
-    }
+    // //conditional rendering: show loading screen
+    // if (isCheckingToken) {
+    //     return (
+    //         <View>
+    //             <Text style={styles.loadingText}>Loading...</Text>
+    //         </View>
+    //     );
+    // }
 
     //conditional rendering: block app if location permission is not granted
     if (!isLocationPermissionGranted.current) {
@@ -896,7 +923,7 @@ const NavigationPage = () => {
             )}
 
             {/* 🆘 Volunteer Button */}
-            {isVolunteerUser && !isMenuVisible && (
+            {isVolunteerUser && !isMenuVisible && !isCheckingToken && (
                 <TouchableOpacity
                     style={[
                         !isStepsBar ? styles.volunteerButton : (showAllSteps ? styles.volunteerButtonFullStepsBar : styles.volunteerButtonStepsBar),

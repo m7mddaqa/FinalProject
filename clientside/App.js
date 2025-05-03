@@ -7,7 +7,6 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { URL } from '@env';
 import { ThemeProvider } from './src/context/ThemeContext';
 
-import Home from './src/screens/Home';
 import LoginPage from './src/screens/LoginPage';
 import SignupPage from './src/screens/SignupPage';
 import MapPage from './src/screens/MapPage';
@@ -22,11 +21,11 @@ function MyStack() {
     <Stack.Navigator>
 
       <Stack.Screen
-        name="Home"
-        component={Home}
+        name="MapPage"
+        component={MapPage}
         options={{
-          title: 'Welcome to SafeSpot',
-          headerTitleStyle: { fontWeight: 'bold' },
+          title: 'Map',
+          headerShown: false,
         }}
       />
 
@@ -52,14 +51,6 @@ function MyStack() {
         }}
       />
 
-      <Stack.Screen
-        name="MapPage"
-        component={MapPage}
-        options={{
-          title: 'Map',
-          headerShown: false,
-        }}
-      />
 
       <Stack.Screen
         name="ProfilePage"

@@ -25,3 +25,16 @@ export const isLoggedIn = async () => {
     console.log('Checking login status...'); //debug log
     return await getToken();
 }
+
+export const getUserName = async () => {
+    try {
+        const token = await AsyncStorage.getItem('token');
+        if (!token) return null;
+
+        const decoded = jwtDecode(token);
+        return decoded.username || 'User'; // Return 'User' as fallback if username is not in token
+    } catch (error) {
+        console.error('Error getting user name:', error);
+        return 'User';
+    }
+}

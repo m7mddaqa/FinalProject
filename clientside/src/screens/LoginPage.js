@@ -15,14 +15,14 @@ const SignInPage = ({ navigation }) => {
     const [isPasswordValid, setIsPasswordValid] = useState(true);
     const [isCheckingToken, setIsCheckingToken] = useState(true);
 
-    //checking if a token exists, as soon as the component is mounted (signin page loads up), it checks if theres a token in the storage, if there is then it redirects to Home
+    //checking if a token exists, as soon as the component is mounted (signin page loads up), it checks if theres a token in the storage, if there is then it redirects to mappage
     //if there is no token, it allows the login page to render
     //page is rendered first (return part gets triggered and then the useEffect is triggered)
     useEffect(() => {
         const checkToken = async () => {
             const token = await getToken();
             if (token) {
-                navigation.navigate('Home');
+                navigation.navigate('MapPage');
             } else {
                 setIsCheckingToken(false);
             }
@@ -63,7 +63,7 @@ const SignInPage = ({ navigation }) => {
             await AsyncStorage.setItem('token', token);
             await AsyncStorage.setItem('userType', userType);
             console.log('Success user logged in successfully', response.data);
-            navigation.navigate('Home');
+            navigation.navigate('MapPage');
         }
         catch (err) {
             if (err.response?.data?.message) {
@@ -116,10 +116,10 @@ const SignInPage = ({ navigation }) => {
                 </TouchableOpacity>
 
                 <View style={styles.bottomButtons}>
-                    <TouchableOpacity onPress={() => navigation.navigate('SignupPage')} disabled={Loading}>
+                    <TouchableOpacity onPress={() => navigation.replace('SignupPage')} disabled={Loading}>
                         <Text style={styles.signupNavigate}>Don't have an account?</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => navigation.navigate('SignupPage')} disabled={Loading}>
+                    <TouchableOpacity onPress={() => navigation.replace('SignupPage')} disabled={Loading}>
                         <Text style={styles.signupNavigate}>Forgot your password?</Text>
                     </TouchableOpacity>
                 </View>

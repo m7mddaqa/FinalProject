@@ -27,7 +27,7 @@ const SignupPage = props => {
                 console.log('Token:', token); //logs null if no token is found
                 if (token) {
                     console.log('User already logged in, redirecting...');
-                    props.navigation.navigate('Home'); //navigate to Home if token exists
+                    props.navigation.replace('LoginPage'); //navigate to login page if token exists
                 } else {
                     setIsCheckingToken(false); //allow the login page to render if no token exists
                 }
@@ -105,7 +105,7 @@ const SignupPage = props => {
             });
             //recieves a 2XX.. response, user created successfully 
             console.log('Success:', response.data);
-            props.navigation.navigate('LoginPage');
+            props.navigation.replace('LoginPage');
 
             //enters catch block if backend returns 4XX/5XX...
         } catch (err) {
@@ -198,10 +198,10 @@ const SignupPage = props => {
                 </TouchableOpacity>
 
                 <View style={styles.bottomButtons}>
-                    <TouchableOpacity onPress={() => props.navigation.navigate('LoginPage')} disabled={loading}>
+                    <TouchableOpacity onPress={() => props.navigation.replace('LoginPage')} disabled={loading}>
                         <Text style={styles.loginNavigate}>Already have an account</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => props.navigation.navigate('LoginPage')} disabled={loading}>
+                    <TouchableOpacity onPress={() => props.navigation.replace('LoginPage')} disabled={loading}>
                         <Text style={styles.forgotPasswordNavigate}>Forgot your password?</Text>
                     </TouchableOpacity>
                 </View>
