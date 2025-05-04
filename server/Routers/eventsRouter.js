@@ -40,8 +40,8 @@ router.post('/events', upload.single('image'), upload.validateFile, upload.error
   }
 
   // 2. Validate request body
-  const { type, location, description } = req.body;
-  if (!type || !location || !location.latitude || !location.longitude) {
+  const { type, location, description,category } = req.body;
+  if (!type || !location || !location.latitude || !location.longitude || !category) {
     console.warn('[WARN] Missing or invalid event data:', req.body);
     return res.status(400).json({ error: 'Invalid event data' });
   }
@@ -50,7 +50,7 @@ router.post('/events', upload.single('image'), upload.validateFile, upload.error
   try {
     const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
     console.log('[DEBUG] Constructed image URL:', imageUrl);
-    
+
     // Get user information
     const user = await User.findById(userId);
     if (!user) {
@@ -65,6 +65,7 @@ router.post('/events', upload.single('image'), upload.validateFile, upload.error
     }
 
     const event = new Event({
+      category,
       type,
       location,
       description: description || '',
@@ -95,7 +96,7 @@ router.post('/events', upload.single('image'), upload.validateFile, upload.error
 router.get('/events', async (req, res) => {
   try {
     const { latitude, longitude } = req.query;
-    
+
     if (!latitude || !longitude) {
       const events = await Event.find({ resolved: { $ne: true } })
         .sort({ createdAt: -1 });
@@ -113,7 +114,7 @@ router.get('/events', async (req, res) => {
     const eventsWithDistance = events.map(event => {
       const eventLat = event.location.latitude;
       const eventLng = event.location.longitude;
-      
+
       //calculate distance using Haversine formula
       const R = 6371; //earth's radius in kilometers
       const dLat = (eventLat - userLat) * Math.PI / 180;
@@ -168,6 +169,17 @@ router.put('/events/:id/resolve', async (req, res) => {
     res.status(500).json({ error: 'Failed to resolve event' });
   }
 });
+
+//check if event still exists/active
+router.get('/events/:id/findIfEventActive', async (req, res) => {
+  const { id } = req.params;
+  const event = await Event.findById(id);
+  if (!event) {
+    return res.status(404).json({ error: 'Event not found' });
+  }
+  res.json(event);
+}
+);
 
 router.put('/events/:id/incrementOnWayVolunteers', async (req, res) => {
   try {

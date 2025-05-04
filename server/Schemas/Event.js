@@ -1,6 +1,11 @@
 import mongoose from 'mongoose';
 
 const EventSchema = new mongoose.Schema({
+    category: {
+        type: String,
+        enum: ['normal', 'emergency'],
+        required: true
+    },
     type: {
         type: String,
         required: true

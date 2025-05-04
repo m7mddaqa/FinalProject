@@ -12,7 +12,6 @@ import { Server } from 'socket.io';
 import requireAuth from './middlewares/requireAuth.js';
 import signupRouter from './Routers/signupRouter.js';
 import loginRouter from './Routers/loginRouter.js';
-import testingRoute from './Routers/testingRoute.js';
 import searchHistoryRouter from './Routers/searchHistoryRouter.js';
 import userRouter from './Routers/userRouter.js';
 import eventsRouter from './Routers/eventsRouter.js';
@@ -86,12 +85,11 @@ mongoose.connect(MONGODB_URI)
   .catch(err => console.error('[DB] MongoDB connection error:', err));
 
 //routes
-app.use(signupRouter);
-app.use(loginRouter);
-app.use(testingRoute);
+app.use('/api', signupRouter);
+app.use('/api', loginRouter);
 app.use('/api', eventsRouter);
-app.use(searchHistoryRouter);
-app.use(userRouter);
+app.use('/api', searchHistoryRouter);
+app.use('/api', userRouter);
 
 //root
 app.get('/', (req, res) => {

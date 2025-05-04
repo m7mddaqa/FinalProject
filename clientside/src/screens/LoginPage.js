@@ -15,14 +15,14 @@ const SignInPage = ({ navigation }) => {
     const [isPasswordValid, setIsPasswordValid] = useState(true);
     const [isCheckingToken, setIsCheckingToken] = useState(true);
 
-    //checking if a token exists, as soon as the component is mounted (signin page loads up), it checks if theres a token in the storage, if there is then it redirects to Home
+    //checking if a token exists, as soon as the component is mounted (signin page loads up), it checks if theres a token in the storage, if there is then it redirects to mappage
     //if there is no token, it allows the login page to render
     //page is rendered first (return part gets triggered and then the useEffect is triggered)
     useEffect(() => {
         const checkToken = async () => {
             const token = await getToken();
             if (token) {
-                navigation.navigate('Home');
+                navigation.navigate('MapPage');
             } else {
                 setIsCheckingToken(false);
             }
@@ -35,10 +35,14 @@ const SignInPage = ({ navigation }) => {
 
     const handleSignIn = async () => {
         try {
+            console.log('Sign in attempt with username:', username);
+            console.log('API URL:', URL); // Log the URL to check if it's defined
+            
             setLoading(true);
             setError('');
             setIsUsernameValid(true);
             setIsPasswordValid(true);
+            
             if (!username) {
                 setError('Please enter your username');
                 setLoading(false);
@@ -51,27 +55,38 @@ const SignInPage = ({ navigation }) => {
                 setIsPasswordValid(false);
                 return;
             }
-            const response = await axios.post(`${URL}/login`, {
+
+            console.log('Making API request to:', `${URL}/api/login`);
+            
+            const response = await axios.post(`${URL}/api/login`, {
                 username: username,
                 password: password
             });
+            
             console.log('Login response:', response.data);
             const { token, userType } = response.data;
             console.log('Token:', token);
             console.log('User type:', userType);
-            //save the token and userType to asyncstorage
+            
             await AsyncStorage.setItem('token', token);
             await AsyncStorage.setItem('userType', userType);
             console.log('Success user logged in successfully', response.data);
-            navigation.navigate('Home');
+            
+            Alert.alert('Success', 'Logged in successfully!');
+            navigation.navigate('MapPage');
         }
         catch (err) {
+            console.error('Login error:', err);
+            console.error('Error response:', err.response);
+            console.error('Error message:', err.message);
+            
             if (err.response?.data?.message) {
                 setError(err.response.data.message);
             } else {
                 console.error('Unexpected Error:', err);
                 setError('An unexpected error occurred. Please try again later.');
             }
+            Alert.alert('Error', 'Failed to login. Please check the console for details.');
         }
         finally {
             setLoading(false);
@@ -116,10 +131,10 @@ const SignInPage = ({ navigation }) => {
                 </TouchableOpacity>
 
                 <View style={styles.bottomButtons}>
-                    <TouchableOpacity onPress={() => navigation.navigate('SignupPage')} disabled={Loading}>
+                    <TouchableOpacity onPress={() => navigation.replace('SignupPage')} disabled={Loading}>
                         <Text style={styles.signupNavigate}>Don't have an account?</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => navigation.navigate('SignupPage')} disabled={Loading}>
+                    <TouchableOpacity onPress={() => navigation.replace('SignupPage')} disabled={Loading}>
                         <Text style={styles.signupNavigate}>Forgot your password?</Text>
                     </TouchableOpacity>
                 </View>
@@ -128,6 +143,5 @@ const SignInPage = ({ navigation }) => {
         </View>
     );
 };
-
 
 export default SignInPage;

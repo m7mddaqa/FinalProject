@@ -5,7 +5,7 @@ import cors from 'cors';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import eventsRouter from './Routers/eventsRouter.js';
-import authRouter from './Routers/authRouter.js';
+import loginRouter from './Routers/loginRouter.js';
 import http from 'http';
 import { Server } from 'socket.io';
 import fs from 'fs';
@@ -146,7 +146,7 @@ app.use((req, res, next) => {
 
 //routes
 app.use('/api', eventsRouter);
-app.use('/api', authRouter);
+app.use('/api', loginRouter);
 
 //socket.io connection
 io.on('connection', (socket) => {

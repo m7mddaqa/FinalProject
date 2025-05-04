@@ -30,7 +30,7 @@ const ProfilePage = ({ navigation }) => {
                 console.log('User ID:', tokenData.userId);
 
                 //fetch user profile data
-                const response = await axios.get(`${API_URL}/profile/${tokenData.userId}`, {
+                const response = await axios.get(`${API_URL}/api/profile/${tokenData.userId}`, {
                     headers: { Authorization: `Bearer ${tokenData.token}` }
                 });
                 console.log('Profile data:', response.data);
@@ -86,7 +86,7 @@ const ProfilePage = ({ navigation }) => {
                 });
 
                 if (!result.canceled) {
-                    setShowImagePickerModal(false);
+                    setShowImagePickerModal(false); 
                     await uploadImage(result.assets[0].uri);
                 }
             }
@@ -106,7 +106,7 @@ const ProfilePage = ({ navigation }) => {
             });
             formData.append('userId', userData._id);
 
-            const response = await axios.post(`${API_URL}/profile/image`, formData, {
+            const response = await axios.post(`${API_URL}/api/profile/image`, formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data',
                     Authorization: `Bearer ${token}`

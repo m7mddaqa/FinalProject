@@ -33,6 +33,15 @@ const SearchBar = ({
         setIsInternationalSearch(isInternational);
     };
 
+    const handleSearchBarFocus = async () => {
+        try {
+            const updatedHistory = await fetchSearchHistory();
+            setSearchHistory(updatedHistory);
+        } catch (error) {
+            console.error('Error refreshing search history:', error);
+        }
+    };
+
     if (isMenuVisible) return null;
 
     return (
@@ -124,20 +133,10 @@ const SearchBar = ({
                     }}
                     maxResults={6}
                     textInputProps={{
-                        onChangeText: handleSearchTextChange
+                        onChangeText: handleSearchTextChange,
+                        onFocus: handleSearchBarFocus
                     }}
                 />
-                <TouchableOpacity
-                    style={isDarkMode ? styles.historyButtonDark : styles.historyButton}
-                    onPress={() => {
-                        setShowHistory(!showHistory);
-                        if (!showHistory) {
-                            fetchSearchHistory();
-                        }
-                    }}
-                >
-                    <MaterialIcons name="history" size={24} color={isDarkMode ? "#fff" : "black"} />
-                </TouchableOpacity>
             </View>
 
             {showHistory && (

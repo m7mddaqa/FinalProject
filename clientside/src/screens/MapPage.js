@@ -29,7 +29,7 @@ import { io } from 'socket.io-client';
 import { useTheme } from '../context/ThemeContext';
 import { Platform } from 'react-native';
 
-import {incrementArrivedVolunteers, incrementOnWayVolunteers,decrementOnWayVolunteers,fetchVolunteerReports, calculateETA, cancelRide, getManeuverIcon, handleRecenter, renderHistoryItem, handleMenuToggle, getManeuverText, calculateDistanceToRoute, handleReport, saveSearchToHistory, fetchSearchHistory } from '../services/driveHelpers';
+import { getEventIcon, calculateBearing, incrementArrivedVolunteers, incrementOnWayVolunteers, decrementOnWayVolunteers, fetchVolunteerReports, calculateETA, cancelRide, getManeuverIcon, handleRecenter, renderHistoryItem, handleMenuToggle, getManeuverText, calculateDistanceToRoute, handleReport, saveSearchToHistory, fetchSearchHistory } from '../services/driveHelpers';
 
 const googleMapsApiKey = MapsApiKey;
 
@@ -77,22 +77,36 @@ const NavigationPage = () => {
     //new: reference to save last camera center
     const lastCamera = useRef({});
 
-    //compute bearing between two coords
-    const calculateBearing = (from, to) => {
-        const toRad = d => d * Math.PI / 180;
-        const toDeg = r => r * 180 / Math.PI;
-        const lat1 = toRad(from.latitude), lat2 = toRad(to.latitude);
-        const dLon = toRad(to.longitude - from.longitude);
-        const y = Math.sin(dLon) * Math.cos(lat2);
-        const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
-        return (toDeg(Math.atan2(y, x)) + 360) % 360;
-    };
 
     //functions:
 
-    const handleAddEvent = () => {
-        setShowVolunteerPanel(false); //close volunteer panel first
-        setShowReportPanel(prev => !prev);
+    const handleAddEvent = async () => {
+        try {
+            const token = await isLoggedIn();
+            if (!token) {
+                Alert.alert(
+                    'You need to be logged in to add a report.',
+                    'Please log in to your account.',
+                    [
+                        {
+                            text: 'OK',
+                            onPress: () => navigation.navigate('LoginPage'),
+                        },
+                        {
+                            text: 'Cancel',
+                            onPress: () => console.log('cancel adding report'),
+                            style: 'cancel',
+                        },
+                    ],
+                    { cancelable: true }
+                );
+                return;
+            }
+            setShowVolunteerPanel(false);
+            setShowReportPanel(prev => !prev);
+        } catch (error) {
+            console.error("Error in handleAddEvent:", error);
+        }
     };
 
     //opening menu function + animation
@@ -119,16 +133,79 @@ const NavigationPage = () => {
         }
     };
 
+
+    const handleResolveReport = async (reportId) => {
+        try {
+            const token = await AsyncStorage.getItem('token');
+            await axios.put(`${URL}/events/${reportId}/resolve`, {}, {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
+            Alert.alert('Success', 'Report marked as resolved');
+            fetchVolunteerReports(setVolunteerReports);
+        } catch (error) {
+            console.error('Error resolving report:', error);
+            Alert.alert('Error', 'Failed to resolve report');
+        }
+    };
+
+
+    //function to fetch events
+    const fetchEvents = async () => {
+        if (origin) {
+            try {
+                const response = await axios.get(`${URL}/api/events?latitude=${origin.latitude}&longitude=${origin.longitude}`);
+                console.log('Events response:', response.data); // Add logging
+                setEvents(response.data);
+            } catch (error) {
+                console.error('Error fetching events:', error.response?.data || error.message);
+            }
+        }
+    };
+
+
+    //add this function to check if user is off route
+    const checkRouteDeviation = async () => {
+        if (!origin || !routeCoordinates.length) return;
+
+        try {
+            const { coords } = await Location.getCurrentPositionAsync({});
+            const distance = calculateDistanceToRoute(
+                { latitude: coords.latitude, longitude: coords.longitude },
+                routeCoordinates
+            );
+
+            //if more than 50 meters from route, consider it a wrong turn
+            const isDeviated = distance > 50;
+            setIsOffRoute(isDeviated);
+
+            if (isDeviated) {
+                Alert.alert(
+                    "Wrong Turn Detected",
+                    "You have deviated from the route. Recalculating...",
+                    [{ text: "OK" }]
+                );
+                //trigger rerouting
+                setForceReroute(true);
+            }
+        } catch (error) {
+            console.error("Error checking route deviation:", error);
+        }
+    };
+
     //useEffects:
 
     //check if token exists
     useEffect(() => {
         (async () => {
             const token = await isLoggedIn();
-            if (!token) navigation.replace('Home');
-            setIsCheckingToken(false);
+            if (!token) {
+                setIsCheckingToken(false);
+            }
         })();
     }, []);
+
     //add useEffect to update isStepsBar state
     useEffect(() => {
         setIsStepsBar(instructions.length > 0 || showAllSteps);
@@ -148,6 +225,27 @@ const NavigationPage = () => {
             if (from === 'EventDetails' && event) {
                 console.log('User came from EventDetails');
                 console.log(event);
+
+                //check if the event is still active (could modify later depending on how events are resolved)
+                try {
+                    const response = await axios.get(`${URL}/api/events/${event._id}/findIfEventActive`);
+                    if (!response.data.resolved) {
+                        console.log('Event is still active:', response.data);
+                    } else {
+                        console.warn('Event is resolved.');
+                        Alert.alert('Notice', 'This event is no longer active.');
+                    }
+                } catch (error) {
+                    if (error.response?.status === 404) {
+                        console.warn('Event not found (404):', error.response.data);
+                        Alert.alert('Notice', 'This event no longer exists.');
+                    } else {
+                        console.error('Error checking if event is active:', error);
+                        Alert.alert('Error', 'Could not verify event status.');
+                    }
+                    return;
+                };
+
                 //update the origin in order to the other useEffect to work (responsible for steps bar showing up + finding correcting routes)
                 await handleRecenter(setOrigin, setMapRegion);
                 //set the destination
@@ -155,7 +253,6 @@ const NavigationPage = () => {
                     latitude: event.location.latitude,
                     longitude: event.location.longitude,
                 });
-
 
                 //usestate variable just to know whether the volunteer is navigating to an event or not, we could use it to change
                 //the number of ongoing volunteers in case he cancelled the navigation or if he has arrived, additionally to increment the arrivedVolunteers field
@@ -230,7 +327,7 @@ const NavigationPage = () => {
     useEffect(() => {
         if (!destination) {
             //clear route data when destination is removed (cancel navigation)
-            if(isVolunteerOnWay) {
+            if (isVolunteerOnWay) {
                 decrementOnWayVolunteers(event._id); //decrement the number of ongoing volunteers
                 setIsVolunteerOnWay(false);
             }
@@ -463,14 +560,17 @@ const NavigationPage = () => {
 
     useEffect(() => {
         const checkUserType = async () => {
-            console.log('Checking user type...');
-            const volunteerStatus = await isVolunteer();
-            console.log('Volunteer status:', volunteerStatus);
-            setIsVolunteerUser(volunteerStatus);
-            if (volunteerStatus) {
-                console.log('Fetching volunteer reports...');
-                fetchVolunteerReports(setVolunteerReports);
+            const token = await isLoggedIn();
+            if (!token) {
+                setIsCheckingToken(false);
+                setIsVolunteerUser(false);
+                return;
+
+
             }
+            const volunteerStatus = await isVolunteer();
+            setIsVolunteerUser(volunteerStatus === true);
+            setIsCheckingToken(false);
         };
         checkUserType();
     }, []);
@@ -523,50 +623,6 @@ const NavigationPage = () => {
         setShowVolunteerPanel(prev => !prev);
     };
 
-    const handleResolveReport = async (reportId) => {
-        try {
-            const token = await AsyncStorage.getItem('token');
-            await axios.put(`${URL}/events/${reportId}/resolve`, {}, {
-                headers: {
-                    Authorization: `Bearer ${token}`
-                }
-            });
-            Alert.alert('Success', 'Report marked as resolved');
-            fetchVolunteerReports(setVolunteerReports);
-        } catch (error) {
-            console.error('Error resolving report:', error);
-            Alert.alert('Error', 'Failed to resolve report');
-        }
-    };
-
-    //add this function to check if user is off route
-    const checkRouteDeviation = async () => {
-        if (!origin || !routeCoordinates.length) return;
-
-        try {
-            const { coords } = await Location.getCurrentPositionAsync({});
-            const distance = calculateDistanceToRoute(
-                { latitude: coords.latitude, longitude: coords.longitude },
-                routeCoordinates
-            );
-
-            //if more than 50 meters from route, consider it a wrong turn
-            const isDeviated = distance > 50;
-            setIsOffRoute(isDeviated);
-
-            if (isDeviated) {
-                Alert.alert(
-                    "Wrong Turn Detected",
-                    "You have deviated from the route. Recalculating...",
-                    [{ text: "OK" }]
-                );
-                //trigger rerouting
-                setForceReroute(true);
-            }
-        } catch (error) {
-            console.error("Error checking route deviation:", error);
-        }
-    };
 
     //add this useEffect to periodically check route deviation
     useEffect(() => {
@@ -612,18 +668,7 @@ const NavigationPage = () => {
         setIsInternationalSearch(isInternational);
     };
 
-    //function to fetch events
-    const fetchEvents = async () => {
-        if (origin) {
-            try {
-                const response = await axios.get(`${URL}/api/events?latitude=${origin.latitude}&longitude=${origin.longitude}`);
-                console.log('Events response:', response.data); // Add logging
-                setEvents(response.data);
-            } catch (error) {
-                console.error('Error fetching events:', error.response?.data || error.message);
-            }
-        }
-    };
+
 
     //useEffect to fetch events when origin changes
     useEffect(() => {
@@ -652,14 +697,14 @@ const NavigationPage = () => {
         };
     }, [isVolunteerUser, showVolunteerPanel]);
 
-    //conditional rendering: show loading screen
-    if (isCheckingToken) {
-        return (
-            <View>
-                <Text style={styles.loadingText}>Loading...</Text>
-            </View>
-        );
-    }
+    // //conditional rendering: show loading screen
+    // if (isCheckingToken) {
+    //     return (
+    //         <View>
+    //             <Text style={styles.loadingText}>Loading...</Text>
+    //         </View>
+    //     );
+    // }
 
     //conditional rendering: block app if location permission is not granted
     if (!isLocationPermissionGranted.current) {
@@ -744,13 +789,11 @@ const NavigationPage = () => {
                             title={event.type}
                             description={`Distance: ${event.distance.toFixed(2)} km`}
                         >
-                            <View style={styles.eventMarker}>
-                                <MaterialCommunityIcons
-                                    name="alert-circle"
-                                    size={30}
-                                    color="#ff4444"
-                                />
-                            </View>
+                            <Image
+                                source={getEventIcon(event.type)}
+                                style={{ width: 35, height: 35 }}
+                                resizeMode="contain"
+                            />
                         </Marker>
                     ))}
 
@@ -888,7 +931,7 @@ const NavigationPage = () => {
             )}
 
             {/* 🆘 Volunteer Button */}
-            {isVolunteerUser && !isMenuVisible && !showVolunteerPanel && (
+            {isVolunteerUser && !isMenuVisible && !isCheckingToken && (
                 <TouchableOpacity
                     style={[
                         !isStepsBar ? styles.volunteerButton : (showAllSteps ? styles.volunteerButtonFullStepsBar : styles.volunteerButtonStepsBar),

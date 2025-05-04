@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Animated, View, Text, TouchableOpacity } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { styles } from '../styles/MapPageStyle';
 import { cancelRide } from '../services/driveHelpers';
 import { useTheme } from '../context/ThemeContext';
+import { getUserName, isLoggedIn } from '../services/getToken';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const MapPageMenu = ({
     slideAnim,
@@ -15,6 +17,22 @@ const MapPageMenu = ({
     setSearchHistory,
 }) => {
     const { isDarkMode } = useTheme();
+    const [userName, setUserName] = useState('User');
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+    useEffect(() => {
+        const checkAuth = async () => {
+            const token = await isLoggedIn();
+            setIsAuthenticated(!!token);
+            if (token) {
+                const name = await getUserName();
+                if (name) {
+                    setUserName(name);
+                }
+            }
+        };
+        checkAuth();
+    }, []);
 
     const themeStyles = {
         menu: isDarkMode ? styles.slidingMenuDark : styles.slidingMenu,
@@ -41,16 +59,18 @@ const MapPageMenu = ({
                 <MaterialIcons name="close" size={24} color={themeStyles.icon} />
             </TouchableOpacity>
 
-            {/* Profile Section */}
-            <View style={themeStyles.profileSection}>
-                <MaterialIcons name="person" size={50} color={isDarkMode ? "#0A84FF" : "#067ef5"} />
-                <View style={styles.profileText}>
-                    <Text style={themeStyles.profileName}>mohamad dacca</Text>
-                    <TouchableOpacity onPress={() => navigation.navigate('ProfilePage')}>
-                        <Text style={themeStyles.viewProfileText}>View profile</Text>
-                    </TouchableOpacity>
+            {/* Profile Section - Only show when authenticated */}
+            {isAuthenticated && (
+                <View style={themeStyles.profileSection}>
+                    <MaterialIcons name="person" size={50} color={isDarkMode ? "#0A84FF" : "#067ef5"} />
+                    <View style={styles.profileText}>
+                        <Text style={themeStyles.profileName}>{userName}</Text>
+                        <TouchableOpacity onPress={() => navigation.navigate('ProfilePage')}>
+                            <Text style={themeStyles.viewProfileText}>View profile</Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
-            </View>
+            )}
 
             {/* Menu Items */}
             <TouchableOpacity style={themeStyles.menuItem}>
@@ -85,6 +105,21 @@ const MapPageMenu = ({
                 <MaterialIcons name="power-settings-new" size={24} color={themeStyles.icon} />
                 <Text style={themeStyles.text}>Shut off</Text>
             </TouchableOpacity>
+
+            {/* Logout Button */}
+            {isAuthenticated && (
+                <TouchableOpacity
+                    style={themeStyles.menuItem}
+                    onPress={async () => {
+                        await AsyncStorage.removeItem('token');
+                        await AsyncStorage.removeItem('userType');
+                        navigation.replace('LoginPage');
+                    }}
+                >
+                    <MaterialIcons name="logout" size={24} color={themeStyles.icon} />
+                    <Text style={themeStyles.text}>Logout</Text>
+                </TouchableOpacity>
+            )}
         </Animated.View>
     );
 };

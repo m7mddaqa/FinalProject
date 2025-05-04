@@ -121,7 +121,7 @@ export const handleRecenter = async (setOrigin, setMapRegion) => {
             timeInterval: 0,
             distanceInterval: 0
         });
-        
+
         const newRegion = {
             latitude: coords.latitude,
             longitude: coords.longitude,
@@ -260,6 +260,26 @@ export const handleReport = async (reportType, setShowReportPanel, setVolunteerR
         }
 
         const formData = new FormData();
+
+        switch (reportType) {
+            case 'Fire':
+            case 'Accident':
+            case 'Earthquake':
+            case 'Injured':
+            case 'Flood':
+            case 'Unsafe Building':
+            case 'Rockets':
+                formData.append('category', 'emergency');
+                break;
+
+            case 'Police':
+            case 'Traffic Jam':
+            case 'Danger':
+            case 'Camera':
+                formData.append('category', 'normal');
+                break;
+        }
+
         formData.append('type', reportType);
         formData.append('location[latitude]', location.coords.latitude.toString());
         formData.append('location[longitude]', location.coords.longitude.toString());
@@ -302,12 +322,12 @@ export const handleReport = async (reportType, setShowReportPanel, setVolunteerR
 
         const result = await response.json();
         console.log('Report submitted successfully:', result);
-        
+
         //only update UI state if the setters are provided
         if (setShowReportPanel) {
             setShowReportPanel(false);
         }
-        
+
         if (setVolunteerReports) {
             setVolunteerReports(prev => [...prev, result]);
         }
@@ -329,7 +349,7 @@ export const saveSearchToHistory = async (query, location, setSearchHistory) => 
         }
 
         const response = await axios.post(
-            `${URL}/search-history`,
+            `${URL}/api/search-history`,
             {
                 searchQuery: query,
                 location: {
@@ -381,7 +401,7 @@ export const fetchSearchHistory = async () => {
         }
 
         const response = await axios.get(
-            `${URL}/search-history`,
+            `${URL}/api/search-history`,
             {
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -429,29 +449,29 @@ export const renderHistoryItem = (item) => ({
 });
 
 
-    //function to increment the number of ongoing volunteers to an event
-export  const incrementOnWayVolunteers = async (eventId) => {
-        console.log('Incrementing for event:', eventId);
-        try {
-            const token = await AsyncStorage.getItem('token');
-            const response = await axios.put(`${URL}/api/events/${eventId}/incrementOnWayVolunteers`, {}, {
-                headers: {
-                    Authorization: `Bearer ${token}`
-                }
-            });
-            console.log(`Success status: ${response.status}`);
-            console.log('Volunteer added successfully!');
-        } catch (error) {
-            if (error.response) {
-                console.log(`Error status: ${error.response.status}`);
-                console.log(`Error message: ${error.response.data?.error}`);
-            } else {
-                console.error('Unexpected error:', error.message);
+//function to increment the number of ongoing volunteers to an event
+export const incrementOnWayVolunteers = async (eventId) => {
+    console.log('Incrementing for event:', eventId);
+    try {
+        const token = await AsyncStorage.getItem('token');
+        const response = await axios.put(`${URL}/api/events/${eventId}/incrementOnWayVolunteers`, {}, {
+            headers: {
+                Authorization: `Bearer ${token}`
             }
+        });
+        console.log(`Success status: ${response.status}`);
+        console.log('Volunteer added successfully!');
+    } catch (error) {
+        if (error.response) {
+            console.log(`Error status: ${error.response.status}`);
+            console.log(`Error message: ${error.response.data?.error}`);
+        } else {
+            console.error('Unexpected error:', error.message);
         }
-    };
-    
-    //function to decrement the number of ongoing volunteers to an event
+    }
+};
+
+//function to decrement the number of ongoing volunteers to an event
 export const decrementOnWayVolunteers = async (eventId) => {
     console.log('Decrement for event:', eventId);
     try {
@@ -471,7 +491,7 @@ export const decrementOnWayVolunteers = async (eventId) => {
             console.error('Unexpected error:', error.message);
         }
     }
-    };
+};
 
 export const incrementArrivedVolunteers = async (eventId) => {
     console.log('Incrementing for event:', eventId);
@@ -491,5 +511,32 @@ export const incrementArrivedVolunteers = async (eventId) => {
         } else {
             console.error('Unexpected error:', error.message);
         }
+    }
+};
+
+
+//compute bearing between two coords
+export const calculateBearing = (from, to) => {
+    const toRad = d => d * Math.PI / 180;
+    const toDeg = r => r * 180 / Math.PI;
+    const lat1 = toRad(from.latitude), lat2 = toRad(to.latitude);
+    const dLon = toRad(to.longitude - from.longitude);
+    const y = Math.sin(dLon) * Math.cos(lat2);
+    const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+    return (toDeg(Math.atan2(y, x)) + 360) % 360;
+};
+
+//function to get the icon for the event type on map as marker
+export const getEventIcon = (type) => {
+    switch (type.toLowerCase()) {
+        case 'traffic jam': return require('../assets/traffic-jam.png');
+        case 'police': return require('../assets/police.png');
+        case 'accident': return require('../assets/accident.png');
+        case 'injured': return require('../assets/injured.png');
+        case 'fire': return require('../assets/fire.png');
+        case 'rockets': return require('../assets/rocket.png');
+        case 'earthquake': return require('../assets/earthquake.png');
+        case 'flood': return require('../assets/flood.png');
+        case 'unsafe building': return require('../assets/unsafeBuilding.png');
     }
 };

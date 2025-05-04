@@ -33,7 +33,8 @@ router.post('/login', async (req, res) => {
         }
         const token = generateAccessToken({ 
             id: user._id,
-            userType: user.userType 
+            userType: user.userType,
+            username: user.username
         });
         console.log('Token generated:', token);
         res.status(200).json({ 
