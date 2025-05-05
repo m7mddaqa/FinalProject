@@ -5,6 +5,7 @@ import { styles } from '../styles/MapPageStyle';
 import { cancelRide } from '../services/driveHelpers';
 import { useTheme } from '../context/ThemeContext';
 import { getUserName, isLoggedIn } from '../services/getToken';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const MapPageMenu = ({
     slideAnim,
@@ -104,6 +105,21 @@ const MapPageMenu = ({
                 <MaterialIcons name="power-settings-new" size={24} color={themeStyles.icon} />
                 <Text style={themeStyles.text}>Shut off</Text>
             </TouchableOpacity>
+
+            {/* Logout Button */}
+            {isAuthenticated && (
+                <TouchableOpacity
+                    style={themeStyles.menuItem}
+                    onPress={async () => {
+                        await AsyncStorage.removeItem('token');
+                        await AsyncStorage.removeItem('userType');
+                        navigation.replace('LoginPage');
+                    }}
+                >
+                    <MaterialIcons name="logout" size={24} color={themeStyles.icon} />
+                    <Text style={themeStyles.text}>Logout</Text>
+                </TouchableOpacity>
+            )}
         </Animated.View>
     );
 };

@@ -20,7 +20,7 @@ function MyStack() {
   return (
     <Stack.Navigator>
 
-      <Stack.Screen
+<Stack.Screen
         name="MapPage"
         component={MapPage}
         options={{
@@ -50,7 +50,6 @@ function MyStack() {
           headerTitleStyle: { fontWeight: 'bold' },
         }}
       />
-
 
       <Stack.Screen
         name="ProfilePage"

@@ -9,7 +9,7 @@ export const getToken = async () => {
         console.log('Token found:', token); //token exists, user is logged in
         const decoded = jwtDecode(token);
         console.log('Decoded token:', decoded); // Add logging
-        
+
         return {
             token,
             userId: decoded.id // Change from _id to id since that's what's in the token

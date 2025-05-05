@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Switch, StyleSheet, Alert } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useTheme } from '../context/ThemeContext';
@@ -7,13 +7,13 @@ import axios from 'axios';
 import { URL } from '@env';
 import { fetchSearchHistory } from '../services/driveHelpers';
 
-const Settings = ({ navigation, route }) => {
+const Settings = ({ navigation }) => {
     const { isDarkMode, toggleTheme } = useTheme();
     const [avoidTolls, setAvoidTolls] = useState(false);
-    const { setSearchHistory } = route.params || {};
+    const [searchHistory, setSearchHistory] = useState([]);
 
     //load saved settings
-    React.useEffect(() => {
+    useEffect(() => {
         const loadSettings = async () => {
             try {
                 const savedAvoidTolls = await AsyncStorage.getItem('avoidTolls');
@@ -59,20 +59,17 @@ const Settings = ({ navigation, route }) => {
                             }
 
                             //delete from database
-                            await axios.delete(`${URL}/search-history`, {
+                            await axios.delete(`${URL}/api/search-history`, {
                                 headers: {
                                     'Authorization': `Bearer ${token}`
                                 }
                             });
 
-                            // Update the search history state if the callback is provided
-                            if (setSearchHistory) {
-                                // Set to empty array immediately for instant UI update
-                                setSearchHistory([]);
-                                // Then fetch to ensure sync with server
-                                const updatedHistory = await fetchSearchHistory();
-                                setSearchHistory(updatedHistory);
-                            }
+                            // Set to empty array immediately for instant UI update
+                            setSearchHistory([]);
+                            // Then fetch to ensure sync with server
+                            const updatedHistory = await fetchSearchHistory();
+                            setSearchHistory(updatedHistory);
                             
                             Alert.alert("Success", "Search history has been cleared");
                         } catch (error) {

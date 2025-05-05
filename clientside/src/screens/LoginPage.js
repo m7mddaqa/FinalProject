@@ -35,10 +35,14 @@ const SignInPage = ({ navigation }) => {
 
     const handleSignIn = async () => {
         try {
+            console.log('Sign in attempt with username:', username);
+            console.log('API URL:', URL); // Log the URL to check if it's defined
+            
             setLoading(true);
             setError('');
             setIsUsernameValid(true);
             setIsPasswordValid(true);
+            
             if (!username) {
                 setError('Please enter your username');
                 setLoading(false);
@@ -51,27 +55,38 @@ const SignInPage = ({ navigation }) => {
                 setIsPasswordValid(false);
                 return;
             }
-            const response = await axios.post(`${URL}/login`, {
+
+            console.log('Making API request to:', `${URL}/api/login`);
+            
+            const response = await axios.post(`${URL}/api/login`, {
                 username: username,
                 password: password
             });
+            
             console.log('Login response:', response.data);
             const { token, userType } = response.data;
             console.log('Token:', token);
             console.log('User type:', userType);
-            //save the token and userType to asyncstorage
+            
             await AsyncStorage.setItem('token', token);
             await AsyncStorage.setItem('userType', userType);
             console.log('Success user logged in successfully', response.data);
+            
+            Alert.alert('Success', 'Logged in successfully!');
             navigation.navigate('MapPage');
         }
         catch (err) {
+            console.error('Login error:', err);
+            console.error('Error response:', err.response);
+            console.error('Error message:', err.message);
+            
             if (err.response?.data?.message) {
                 setError(err.response.data.message);
             } else {
                 console.error('Unexpected Error:', err);
                 setError('An unexpected error occurred. Please try again later.');
             }
+            Alert.alert('Error', 'Failed to login. Please check the console for details.');
         }
         finally {
             setLoading(false);
@@ -128,6 +143,5 @@ const SignInPage = ({ navigation }) => {
         </View>
     );
 };
-
 
 export default SignInPage;

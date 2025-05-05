@@ -33,6 +33,15 @@ const SearchBar = ({
         setIsInternationalSearch(isInternational);
     };
 
+    const handleSearchBarFocus = async () => {
+        try {
+            const updatedHistory = await fetchSearchHistory();
+            setSearchHistory(updatedHistory);
+        } catch (error) {
+            console.error('Error refreshing search history:', error);
+        }
+    };
+
     if (isMenuVisible) return null;
 
     return (
@@ -124,7 +133,8 @@ const SearchBar = ({
                     }}
                     maxResults={6}
                     textInputProps={{
-                        onChangeText: handleSearchTextChange
+                        onChangeText: handleSearchTextChange,
+                        onFocus: handleSearchBarFocus
                     }}
                 />
             </View>

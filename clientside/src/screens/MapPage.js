@@ -29,7 +29,7 @@ import { io } from 'socket.io-client';
 import { useTheme } from '../context/ThemeContext';
 import { Platform } from 'react-native';
 
-import {getEventIcon, calculateBearing, incrementArrivedVolunteers, incrementOnWayVolunteers, decrementOnWayVolunteers, fetchVolunteerReports, calculateETA, cancelRide, getManeuverIcon, handleRecenter, renderHistoryItem, handleMenuToggle, getManeuverText, calculateDistanceToRoute, handleReport, saveSearchToHistory, fetchSearchHistory } from '../services/driveHelpers';
+import { getEventIcon, calculateBearing, incrementArrivedVolunteers, incrementOnWayVolunteers, decrementOnWayVolunteers, fetchVolunteerReports, calculateETA, cancelRide, getManeuverIcon, handleRecenter, renderHistoryItem, handleMenuToggle, getManeuverText, calculateDistanceToRoute, handleReport, saveSearchToHistory, fetchSearchHistory } from '../services/driveHelpers';
 
 const googleMapsApiKey = MapsApiKey;
 
@@ -77,6 +77,7 @@ const NavigationPage = () => {
     //new: reference to save last camera center
     const lastCamera = useRef({});
 
+
     //functions:
 
     const handleAddEvent = async () => {
@@ -113,18 +114,7 @@ const NavigationPage = () => {
         handleMenuToggle(isMenuVisible, slideAnim, setIsMenuVisible);
     };
 
-    //function to fetch events
-    const fetchEvents = async () => {
-        if (origin) {
-            try {
-                const response = await axios.get(`${URL}/api/events?latitude=${origin.latitude}&longitude=${origin.longitude}`);
-                console.log('Events response:', response.data); // Add logging
-                setEvents(response.data);
-            } catch (error) {
-                console.error('Error fetching events:', error.response?.data || error.message);
-            }
-        }
-    };
+
 
     //function to start navigation with fixed zoom and map rotation.
     const handleStartNavigation = () => {
@@ -159,6 +149,21 @@ const NavigationPage = () => {
             Alert.alert('Error', 'Failed to resolve report');
         }
     };
+
+
+    //function to fetch events
+    const fetchEvents = async () => {
+        if (origin) {
+            try {
+                const response = await axios.get(`${URL}/api/events?latitude=${origin.latitude}&longitude=${origin.longitude}`);
+                console.log('Events response:', response.data); // Add logging
+                setEvents(response.data);
+            } catch (error) {
+                console.error('Error fetching events:', error.response?.data || error.message);
+            }
+        }
+    };
+
 
     //add this function to check if user is off route
     const checkRouteDeviation = async () => {
@@ -195,8 +200,8 @@ const NavigationPage = () => {
     useEffect(() => {
         (async () => {
             const token = await isLoggedIn();
-            if (!token){
-            setIsCheckingToken(false);
+            if (!token) {
+                setIsCheckingToken(false);
             }
         })();
     }, []);
@@ -248,7 +253,6 @@ const NavigationPage = () => {
                     latitude: event.location.latitude,
                     longitude: event.location.longitude,
                 });
-
 
                 //usestate variable just to know whether the volunteer is navigating to an event or not, we could use it to change
                 //the number of ongoing volunteers in case he cancelled the navigation or if he has arrived, additionally to increment the arrivedVolunteers field
@@ -462,6 +466,7 @@ const NavigationPage = () => {
     }, []);
 
 
+
     //unified heading tracking using Location.watchHeadingAsync for both Android and iOS
     useEffect(() => {
         let headingSubscription = null;
@@ -560,6 +565,8 @@ const NavigationPage = () => {
                 setIsCheckingToken(false);
                 setIsVolunteerUser(false);
                 return;
+
+
             }
             const volunteerStatus = await isVolunteer();
             setIsVolunteerUser(volunteerStatus === true);
@@ -660,6 +667,7 @@ const NavigationPage = () => {
         );
         setIsInternationalSearch(isInternational);
     };
+
 
 
     //useEffect to fetch events when origin changes

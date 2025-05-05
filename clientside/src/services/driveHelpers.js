@@ -121,7 +121,7 @@ export const handleRecenter = async (setOrigin, setMapRegion) => {
             timeInterval: 0,
             distanceInterval: 0
         });
-        
+
         const newRegion = {
             latitude: coords.latitude,
             longitude: coords.longitude,
@@ -260,6 +260,26 @@ export const handleReport = async (reportType, setShowReportPanel, setVolunteerR
         }
 
         const formData = new FormData();
+
+        switch (reportType) {
+            case 'Fire':
+            case 'Accident':
+            case 'Earthquake':
+            case 'Injured':
+            case 'Flood':
+            case 'Unsafe Building':
+            case 'Rockets':
+                formData.append('category', 'emergency');
+                break;
+
+            case 'Police':
+            case 'Traffic Jam':
+            case 'Danger':
+            case 'Camera':
+                formData.append('category', 'normal');
+                break;
+        }
+
         formData.append('type', reportType);
         formData.append('location[latitude]', location.coords.latitude.toString());
         formData.append('location[longitude]', location.coords.longitude.toString());
@@ -302,12 +322,12 @@ export const handleReport = async (reportType, setShowReportPanel, setVolunteerR
 
         const result = await response.json();
         console.log('Report submitted successfully:', result);
-        
+
         //only update UI state if the setters are provided
         if (setShowReportPanel) {
             setShowReportPanel(false);
         }
-        
+
         if (setVolunteerReports) {
             setVolunteerReports(prev => [...prev, result]);
         }
@@ -329,7 +349,7 @@ export const saveSearchToHistory = async (query, location, setSearchHistory) => 
         }
 
         const response = await axios.post(
-            `${URL}/search-history`,
+            `${URL}/api/search-history`,
             {
                 searchQuery: query,
                 location: {
@@ -381,7 +401,7 @@ export const fetchSearchHistory = async () => {
         }
 
         const response = await axios.get(
-            `${URL}/search-history`,
+            `${URL}/api/search-history`,
             {
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -429,29 +449,29 @@ export const renderHistoryItem = (item) => ({
 });
 
 
-    //function to increment the number of ongoing volunteers to an event
-export  const incrementOnWayVolunteers = async (eventId) => {
-        console.log('Incrementing for event:', eventId);
-        try {
-            const token = await AsyncStorage.getItem('token');
-            const response = await axios.put(`${URL}/api/events/${eventId}/incrementOnWayVolunteers`, {}, {
-                headers: {
-                    Authorization: `Bearer ${token}`
-                }
-            });
-            console.log(`Success status: ${response.status}`);
-            console.log('Volunteer added successfully!');
-        } catch (error) {
-            if (error.response) {
-                console.log(`Error status: ${error.response.status}`);
-                console.log(`Error message: ${error.response.data?.error}`);
-            } else {
-                console.error('Unexpected error:', error.message);
+//function to increment the number of ongoing volunteers to an event
+export const incrementOnWayVolunteers = async (eventId) => {
+    console.log('Incrementing for event:', eventId);
+    try {
+        const token = await AsyncStorage.getItem('token');
+        const response = await axios.put(`${URL}/api/events/${eventId}/incrementOnWayVolunteers`, {}, {
+            headers: {
+                Authorization: `Bearer ${token}`
             }
+        });
+        console.log(`Success status: ${response.status}`);
+        console.log('Volunteer added successfully!');
+    } catch (error) {
+        if (error.response) {
+            console.log(`Error status: ${error.response.status}`);
+            console.log(`Error message: ${error.response.data?.error}`);
+        } else {
+            console.error('Unexpected error:', error.message);
         }
-    };
-    
-    //function to decrement the number of ongoing volunteers to an event
+    }
+};
+
+//function to decrement the number of ongoing volunteers to an event
 export const decrementOnWayVolunteers = async (eventId) => {
     console.log('Decrement for event:', eventId);
     try {
@@ -471,9 +491,8 @@ export const decrementOnWayVolunteers = async (eventId) => {
             console.error('Unexpected error:', error.message);
         }
     }
-    };
+};
 
-    //function to increment the number of arrived volunteers to an event
 export const incrementArrivedVolunteers = async (eventId) => {
     console.log('Incrementing for event:', eventId);
     try {
@@ -494,6 +513,7 @@ export const incrementArrivedVolunteers = async (eventId) => {
         }
     }
 };
+
 
 //compute bearing between two coords
 export const calculateBearing = (from, to) => {

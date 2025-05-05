@@ -21,6 +21,7 @@ const ReportPanel = ({ setShowReportPanel, setVolunteerReports, showAllSteps }) 
         { icon: require('../assets/fire.png'), label: 'Fire' },
         { icon: require('../assets/rocket.png'), label: 'Rockets' },
         { icon: require('../assets/earthquake.png'), label: 'Earthquake' },
+        { icon: require('../assets/danger.png'), label: 'Danger' },
         { icon: require('../assets/flood.png'), label: 'Flood' },
         { icon: require('../assets/unsafeBuilding.png'), label: 'Unsafe Building' },
         ];
