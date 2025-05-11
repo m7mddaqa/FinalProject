@@ -59,8 +59,8 @@ const MapPageMenu = ({
                 <MaterialIcons name="close" size={24} color={themeStyles.icon} />
             </TouchableOpacity>
 
-            {/* Profile Section - Only show when authenticated */}
-            {isAuthenticated && (
+            {/* Profile Section or Login */}
+            {isAuthenticated ? (
                 <View style={themeStyles.profileSection}>
                     <MaterialIcons name="person" size={50} color={isDarkMode ? "#0A84FF" : "#067ef5"} />
                     <View style={styles.profileText}>
@@ -70,6 +70,14 @@ const MapPageMenu = ({
                         </TouchableOpacity>
                     </View>
                 </View>
+            ) : (
+                <TouchableOpacity
+                    style={themeStyles.menuItem}
+                    onPress={() => navigation.navigate('LoginPage')}
+                >
+                    <MaterialIcons name="login" size={24} color={themeStyles.icon} />
+                    <Text style={themeStyles.text}>Login</Text>
+                </TouchableOpacity>
             )}
 
             {/* Menu Items */}
@@ -83,7 +91,7 @@ const MapPageMenu = ({
                 <Text style={themeStyles.text}>Inbox</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
+            <TouchableOpacity
                 style={themeStyles.menuItem}
                 onPress={() => navigation.navigate('Settings', { setSearchHistory })}
             >

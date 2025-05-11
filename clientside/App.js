@@ -1,11 +1,12 @@
 // In App.js in a new project
 import 'react-native-get-random-values';
 import React from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { URL } from '@env';
 import { ThemeProvider } from './src/context/ThemeContext';
+import { HeaderBackButton } from '@react-navigation/elements';
 
 import LoginPage from './src/screens/LoginPage';
 import SignupPage from './src/screens/SignupPage';
@@ -40,25 +41,29 @@ function MyStack() {
         }}
       />
 
-      <Stack.Screen
-        name="SignupPage"
-        component={SignupPage}
-        options={{
-          title: 'Signup for an account',
-          headerStyle: { backgroundColor: '#067ef5' },
-          headerTintColor: '#fff',
-          headerTitleStyle: { fontWeight: 'bold' },
-        }}
+<Stack.Screen
+  name="SignupPage"
+  component={SignupPage}
+  options={({ navigation }) => ({
+    title: 'Signup for an account',
+    headerStyle: { backgroundColor: '#067ef5' },
+    headerTintColor: '#fff',
+    headerTitleStyle: { fontWeight: 'bold' },
+    headerLeft: (props) => (
+      <HeaderBackButton
+        {...props}
+        onPress={() => navigation.replace('LoginPage')}
+        style={{ marginLeft: -5 }}
       />
+    ),
+  })}
+/>
 
       <Stack.Screen
         name="ProfilePage"
         component={ProfilePage}
         options={{
-          title: 'Profile',
-          headerStyle: { backgroundColor: '#067ef5' },
-          headerTintColor: '#fff',
-          headerTitleStyle: { fontWeight: 'bold' },
+          headerShown: false
         }}
       />
 

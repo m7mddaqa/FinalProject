@@ -10,6 +10,7 @@ import { fetchSearchHistory } from '../services/driveHelpers';
 const Settings = ({ navigation }) => {
     const { isDarkMode, toggleTheme } = useTheme();
     const [avoidTolls, setAvoidTolls] = useState(false);
+    const [hideMarkers, setHideMarkers] = useState(false);
     const [searchHistory, setSearchHistory] = useState([]);
 
     //load saved settings
@@ -17,8 +18,10 @@ const Settings = ({ navigation }) => {
         const loadSettings = async () => {
             try {
                 const savedAvoidTolls = await AsyncStorage.getItem('avoidTolls');
-                if (savedAvoidTolls !== null) {
+                const savedHideMarkers = await AsyncStorage.getItem('hideMarkers');
+                if (savedAvoidTolls || savedHideMarkers !== null) {
                     setAvoidTolls(JSON.parse(savedAvoidTolls));
+                    setHideMarkers(JSON.parse(savedHideMarkers));
                 }
             } catch (error) {
                 console.error('Error loading settings:', error);
@@ -27,12 +30,23 @@ const Settings = ({ navigation }) => {
         loadSettings();
     }, []);
 
-    //save settings when changed
+    //save avoid tolls choice in async storage when changes
     const toggleAvoidTolls = async () => {
         const newValue = !avoidTolls;
         setAvoidTolls(newValue);
         try {
             await AsyncStorage.setItem('avoidTolls', JSON.stringify(newValue));
+        } catch (error) {
+            console.error('Error saving settings:', error);
+        }
+    };
+
+    //save hide markers choice in async storage when changes
+    const toggleHideMarkers = async () => {
+        const newValue = !hideMarkers;
+        setHideMarkers(newValue);
+        try {
+            await AsyncStorage.setItem('hideMarkers', JSON.stringify(newValue));
         } catch (error) {
             console.error('Error saving settings:', error);
         }
@@ -70,7 +84,7 @@ const Settings = ({ navigation }) => {
                             // Then fetch to ensure sync with server
                             const updatedHistory = await fetchSearchHistory();
                             setSearchHistory(updatedHistory);
-                            
+
                             Alert.alert("Success", "Search history has been cleared");
                         } catch (error) {
                             console.error('Error clearing search history:', error);
@@ -94,14 +108,14 @@ const Settings = ({ navigation }) => {
     return (
         <View style={themeStyles.container}>
             {/* Custom Back Button */}
-            <TouchableOpacity 
+            <TouchableOpacity
                 style={themeStyles.backButton}
                 onPress={() => navigation.goBack()}
             >
-                <MaterialIcons 
-                    name="arrow-back" 
-                    size={24} 
-                    color={isDarkMode ? '#FFFFFF' : '#000000'} 
+                <MaterialIcons
+                    name="arrow-back"
+                    size={24}
+                    color={isDarkMode ? '#FFFFFF' : '#000000'}
                 />
             </TouchableOpacity>
 
@@ -131,7 +145,17 @@ const Settings = ({ navigation }) => {
                 />
             </View>
 
-            <TouchableOpacity 
+            <View style={themeStyles.settingItem}>
+                <Text style={themeStyles.settingText}>Hide Reports On Map</Text>
+                <Switch
+                    value={hideMarkers}
+                    onValueChange={toggleHideMarkers}
+                    trackColor={{ false: '#767577', true: '#81b0ff' }}
+                    thumbColor={hideMarkers ? '#067ef5' : '#f4f3f4'}
+                />
+            </View>
+
+            <TouchableOpacity
                 style={themeStyles.settingItem}
                 onPress={clearSearchHistory}
             >
@@ -139,6 +163,7 @@ const Settings = ({ navigation }) => {
                     Clear Search History
                 </Text>
             </TouchableOpacity>
+
         </View>
     );
 };

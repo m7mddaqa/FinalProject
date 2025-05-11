@@ -24,6 +24,7 @@ const ReportPanel = ({ setShowReportPanel, setVolunteerReports, showAllSteps }) 
         { icon: require('../assets/danger.png'), label: 'Danger' },
         { icon: require('../assets/flood.png'), label: 'Flood' },
         { icon: require('../assets/unsafeBuilding.png'), label: 'Unsafe Building' },
+        { icon: require('../assets/camera.png'), label: 'Camera' },
         ];
 
     const handleReportPress = (reportType) => {
@@ -67,13 +68,12 @@ const ReportPanel = ({ setShowReportPanel, setVolunteerReports, showAllSteps }) 
 
     return (
         <View style={isDarkMode ? styles.reportPanelDark : styles.reportPanel}>
-            <Text style={isDarkMode ? styles.reportTitleDark : styles.reportTitle}>Report</Text>
-            <TouchableOpacity 
-                style={styles.closeButton}
-                onPress={() => setShowReportPanel(false)}
-            >
-                <Ionicons name="close" style={isDarkMode ? styles.closeButtonIconDark : styles.closeButtonIcon} />
-            </TouchableOpacity>
+            <View style={styles.reportHeader}>
+                <Text style={isDarkMode ? styles.reportTitleDark : styles.reportTitle}>Report</Text>
+                <TouchableOpacity onPress={() => setShowReportPanel(false)}>
+                    <Ionicons name="close" style={isDarkMode ? styles.closeReportPanelButtonDark : styles.closeReportPanelButton} />
+                </TouchableOpacity>
+            </View>
             <ScrollView style={styles.reportGrid}>
                 {reportOptions.map((item, index) => (
                     <TouchableOpacity

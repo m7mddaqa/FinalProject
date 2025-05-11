@@ -6,6 +6,7 @@ import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import eventsRouter from './Routers/eventsRouter.js';
 import loginRouter from './Routers/loginRouter.js';
+import signupRouter from './Routers/signupRouter.js';
 import http from 'http';
 import { Server } from 'socket.io';
 import fs from 'fs';
@@ -18,10 +19,13 @@ dotenv.config();
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: {
-    origin: process.env.CLIENT_URL,
-    methods: ['GET', 'POST']
-  }
+    cors: {
+        origin: process.env.CLIENT_URL || '*',
+        methods: ['GET', 'POST'],
+        credentials: true
+    },
+    pingTimeout: 60000,
+    pingInterval: 25000
 });
 
 //middleware
@@ -49,11 +53,11 @@ app.use(['/uploads', '/api/uploads'], (req, res, next) => {
         console.log('[DEBUG] Request URL:', req.url);
         console.log('[DEBUG] Request path:', req.path);
         console.log('[DEBUG] Current working directory:', process.cwd());
-        
+
         //remove any leading slashes and decode the URL
         const fileName = decodeURIComponent(req.path.replace(/^\/+/, ''));
         const filePath = path.join(uploadsPath, fileName);
-        
+
         console.log('[DEBUG] Static file request:', {
             requestUrl: req.url,
             requestPath: req.path,
@@ -140,33 +144,95 @@ app.use(['/uploads', '/api/uploads'], (req, res, next) => {
 
 //log all requests for debugging
 app.use((req, res, next) => {
-  console.log(`[DEBUG] ${req.method} ${req.url}`);
-  next();
+    console.log(`[DEBUG] ${req.method} ${req.url}`);
+    next();
 });
 
 //routes
 app.use('/api', eventsRouter);
 app.use('/api', loginRouter);
+app.use('/api', signupRouter);
+
+// Add new endpoint for telegram alerts
+app.post('/api/alerts', express.json(), (req, res) => {
+    try {
+        console.log('[API] Received alert request:', {
+            body: req.body,
+            headers: req.headers,
+            method: req.method,
+            path: req.path
+        });
+
+        const alert = req.body;
+        if (!alert || !alert.city || !alert.lat || !alert.lon) {
+            console.error('[API] Invalid alert data:', alert);
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Invalid alert data. Required fields: city, lat, lon' 
+            });
+        }
+
+        console.log('[API] Broadcasting alert:', alert);
+        // Broadcast the alert to all connected clients
+        io.emit('cityAlert', alert);
+        res.json({ success: true, message: 'Alert broadcasted' });
+    } catch (error) {
+        console.error('[API] Error handling alert:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Add a test endpoint to verify the server is working
+app.get('/api/test', (req, res) => {
+    res.json({ message: 'Server is running' });
+});
+
+// Add error handling for the server
+server.on('error', (error) => {
+    console.error('[SERVER] Error:', error);
+});
+
+// Add connection error handling
+io.engine.on('connection_error', (err) => {
+    console.error('[SOCKET] Connection error:', err);
+});
 
 //socket.io connection
 io.on('connection', (socket) => {
-  console.log('A user connected');
-  
-  socket.on('disconnect', () => {
-    console.log('User disconnected');
-  });
+    console.log('[SOCKET] A user connected:', socket.id);
+
+    socket.on('error', (error) => {
+        console.error('[SOCKET] Socket error:', error);
+    });
+
+    socket.on('disconnect', (reason) => {
+        console.log('[SOCKET] User disconnected:', socket.id, 'Reason:', reason);
+    });
+
+    // Add a test event to verify socket connection
+    socket.emit('test', { message: 'Socket connection established' });
+
+    // Handle city alerts
+    socket.on('cityAlert', (alert) => {
+        console.log('[SOCKET] Received city alert:', alert);
+        // Broadcast the alert to all connected clients
+        io.emit('cityAlert', alert);
+    });
 });
 
 //make io accessible to routes
 app.set('io', io);
 
+// Export io instance for use in other files
+export { io };
+
 //connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('Connected to MongoDB'))
-  .catch(err => console.error('MongoDB connection error:', err));
+    .then(() => console.log('Connected to MongoDB'))
+    .catch(err => console.error('MongoDB connection error:', err));
 
 //start server
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+    console.log(`Server running on port ${PORT}`);
 }); 

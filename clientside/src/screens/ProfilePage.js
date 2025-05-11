@@ -21,7 +21,7 @@ const ProfilePage = ({ navigation }) => {
             try {
                 const tokenData = await isLoggedIn();
                 if (!tokenData) {
-                    navigation.navigate('LoginPage');
+                    navigation.navigate('MapPage');
                     return;
                 }
 
@@ -86,7 +86,7 @@ const ProfilePage = ({ navigation }) => {
                 });
 
                 if (!result.canceled) {
-                    setShowImagePickerModal(false); 
+                    setShowImagePickerModal(false);
                     await uploadImage(result.assets[0].uri);
                 }
             }
@@ -126,7 +126,7 @@ const ProfilePage = ({ navigation }) => {
     const handleSignOut = async () => {
         try {
             await AsyncStorage.removeItem('token');
-            navigation.navigate('LoginPage');
+            navigation.navigate('MapPage');
         } catch (error) {
             console.error('Error removing token:', error);
             Alert.alert('Error', 'Failed to sign out. Please try again.');
@@ -171,11 +171,11 @@ const ProfilePage = ({ navigation }) => {
     return (
         <View style={styles.container}>
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()}>
+                <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginTop: 20 }}>
                     <Ionicons name="arrow-back-outline" size={28} color="black" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Profile</Text>
-                <TouchableOpacity>
+                <TouchableOpacity onPress = {() => navigation.navigate('MapPage')} style={{ marginTop: 20 }}>
                     <Ionicons name="close-outline" size={28} color="black" />
                 </TouchableOpacity>
             </View>
@@ -205,7 +205,7 @@ const ProfilePage = ({ navigation }) => {
                         </View>
                     </View>
                 </TouchableOpacity>
-                
+
                 <Text style={styles.profileName}>{userData?.username}</Text>
                 <Text style={styles.pointsTitle}>POINTS</Text>
                 <Text style={styles.pointsValue}>{userData?.score || 0}</Text>
@@ -223,21 +223,21 @@ const ProfilePage = ({ navigation }) => {
                 <View style={styles.modalContainer}>
                     <View style={styles.modalContent}>
                         <Text style={styles.modalTitle}>Change Profile Picture</Text>
-                        <TouchableOpacity 
+                        <TouchableOpacity
                             style={styles.modalButton}
                             onPress={() => handleImagePick('gallery')}
                         >
                             <Ionicons name="images-outline" size={24} color="#067ef5" />
                             <Text style={styles.modalButtonText}>Choose from Gallery</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity 
+                        <TouchableOpacity
                             style={styles.modalButton}
                             onPress={() => handleImagePick('camera')}
                         >
                             <Ionicons name="camera-outline" size={24} color="#067ef5" />
                             <Text style={styles.modalButtonText}>Take a Photo</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity 
+                        <TouchableOpacity
                             style={[styles.modalButton, styles.cancelButton]}
                             onPress={() => setShowImagePickerModal(false)}
                         >
@@ -248,14 +248,10 @@ const ProfilePage = ({ navigation }) => {
             </Modal>
 
             <View style={styles.menu}>
-                <TouchableOpacity style={styles.menuItem}>
-                    <Ionicons name="person-outline" size={24} color="black" />
-                    <Text style={styles.menuItemText}>Account and login</Text>
-                </TouchableOpacity>
 
                 <TouchableOpacity style={styles.menuItem}>
                     <Ionicons name="home-outline" size={24} color="black" />
-                    <Text style={styles.menuItemText}>Setup home or work address</Text>
+                    <Text style={styles.menuItemText}>Setup home address</Text>
                 </TouchableOpacity>
             </View>
 
@@ -279,6 +275,7 @@ const styles = StyleSheet.create({
         marginBottom: 20,
     },
     headerTitle: {
+        marginTop: 20,
         fontSize: 20,
         fontWeight: 'bold',
         color: 'black',
@@ -289,6 +286,7 @@ const styles = StyleSheet.create({
         padding: 20,
         alignItems: 'center',
         marginBottom: 20,
+        marginTop: 40,
         elevation: 3,
     },
     avatarContainer: {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useRoute } from '@react-navigation/native';
+import { useRoute, useFocusEffect } from '@react-navigation/native';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions, Keyboard, Linking, Alert, Image, ActivityIndicator, ScrollView } from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Marker, PROVIDER_GOOGLE, Circle } from 'react-native-maps';
 import MapViewDirections from 'react-native-maps-directions';
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 import * as Location from 'expo-location';
@@ -68,6 +68,9 @@ const NavigationPage = () => {
     const [followsUserLocation, setFollowsUserLocation] = useState(false); // Track if map should follow user
     const [isNavigating, setIsNavigating] = useState(false); //add this state to track if navigation is active
     const [isVolunteerOnWay, setIsVolunteerOnWay] = useState(false); //add this state to track if the volunteer is on his way to an event
+    const [isHideMarkers, setIsHideMarkers] = useState(false); //add this state to track if the user wants to hide markers of reports/incidients on the map 
+    const [cityAlerts, setCityAlerts] = useState([]); // Add state for city alerts
+    const pulseAnim = useRef(new Animated.Value(1)).current; // Add animation value for pulsing effect
     const { isDarkMode } = useTheme();
     const route = useRoute();
     const { event, from } = route.params || {};
@@ -77,6 +80,17 @@ const NavigationPage = () => {
     //new: reference to save last camera center
     const lastCamera = useRef({});
 
+    // Helper: Retry getting current position
+    const getCurrentPositionWithRetry = async (maxRetries = 5, delay = 2000) => {
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                return await Location.getCurrentPositionAsync({});
+            } catch (e) {
+                if (attempt === maxRetries) throw e;
+                await new Promise(res => setTimeout(res, delay));
+            }
+        }
+    };
 
     //functions:
 
@@ -168,9 +182,8 @@ const NavigationPage = () => {
     //add this function to check if user is off route
     const checkRouteDeviation = async () => {
         if (!origin || !routeCoordinates.length) return;
-
         try {
-            const { coords } = await Location.getCurrentPositionAsync({});
+            const { coords } = await getCurrentPositionWithRetry();
             const distance = calculateDistanceToRoute(
                 { latitude: coords.latitude, longitude: coords.longitude },
                 routeCoordinates
@@ -194,7 +207,24 @@ const NavigationPage = () => {
         }
     };
 
-    //useEffects:
+    //function to fetch the hidemarker choice every time map is focused
+    useFocusEffect(
+        React.useCallback(() => {
+            const getHideMarkers = async () => {
+                try {
+                    const hideMarkers = await AsyncStorage.getItem('hideMarkers');
+                    if (hideMarkers !== null) {
+                        setIsHideMarkers(JSON.parse(hideMarkers));
+                    }
+                } catch (error) {
+                    console.error('Error loading settings:', error);
+                }
+            };
+
+            getHideMarkers();
+        }, [])
+    );
+
 
     //check if token exists
     useEffect(() => {
@@ -580,14 +610,29 @@ const NavigationPage = () => {
         let socket;
 
         const setupSocket = () => {
-            socket = io(URL);
+            console.log('[SOCKET] Attempting to connect to:', URL);
+            socket = io(URL, {
+                reconnection: true,
+                reconnectionAttempts: 5,
+                reconnectionDelay: 1000,
+                timeout: 10000,
+                transports: ['websocket', 'polling']
+            });
 
             socket.on('connect', () => {
-                console.log('Connected to socket server');
+                console.log('[SOCKET] Connected successfully');
+            });
+
+            socket.on('connect_error', (error) => {
+                console.error('[SOCKET] Connection error:', error);
+            });
+
+            socket.on('test', (data) => {
+                console.log('[SOCKET] Test event received:', data);
             });
 
             socket.on('newEvent', async () => {
-                //update both map events and volunteer reports
+                console.log('[SOCKET] Received newEvent');
                 await fetchEvents();
                 if (isVolunteerUser) {
                     await fetchVolunteerReports(setVolunteerReports);
@@ -595,28 +640,66 @@ const NavigationPage = () => {
             });
 
             socket.on('updateReports', async () => {
-                //update both map events and volunteer reports
+                console.log('[SOCKET] Received updateReports');
                 await fetchEvents();
                 if (isVolunteerUser) {
                     await fetchVolunteerReports(setVolunteerReports);
                 }
             });
 
-            socket.on('disconnect', () => {
-                console.log('Disconnected from socket server');
+            socket.on('cityAlert', (alert) => {
+                console.log('[SOCKET] Received city alert:', alert);
+                const alertWithId = { ...alert, id: `${alert.city}-${Date.now()}` };
+                setCityAlerts(prev => {
+                    console.log('[SOCKET] Current alerts:', prev);
+                    console.log('[SOCKET] Adding new alert:', alertWithId);
+                    const newAlerts = [...prev, alertWithId];
+                    
+                    // Fit map to show all alerts
+                    if (mapRef.current && newAlerts.length > 0) {
+                        const coordinates = newAlerts.map(alert => ({
+                            latitude: alert.lat,
+                            longitude: alert.lon
+                        }));
+                        
+                        // Add user's current location if available
+                        if (origin) {
+                            coordinates.push(origin);
+                        }
+                        
+                        mapRef.current.fitToCoordinates(coordinates, {
+                            edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
+                            animated: true
+                        });
+                    }
+                    
+                    return newAlerts;
+                });
+                // Remove alert after 1 minute
+                setTimeout(() => {
+                    setCityAlerts(prev => {
+                        console.log('[SOCKET] Removing alert:', alertWithId.id);
+                        return prev.filter(a => a.id !== alertWithId.id);
+                    });
+                }, 60000);
+            });
+
+            socket.on('disconnect', (reason) => {
+                console.log('[SOCKET] Disconnected:', reason);
             });
 
             return socket;
         };
 
-        setupSocket();
+        socket = setupSocket();
 
         return () => {
             if (socket) {
+                console.log('[SOCKET] Cleaning up socket connection');
                 socket.disconnect();
             }
         };
-    }, [origin, isVolunteerUser]); //add isVolunteerUser to dependencies
+    }, []); // Remove dependencies to prevent unnecessary reconnections
 
     const handleVolunteerPanel = () => {
         setShowReportPanel(false); //close report panel first
@@ -697,14 +780,23 @@ const NavigationPage = () => {
         };
     }, [isVolunteerUser, showVolunteerPanel]);
 
-    // //conditional rendering: show loading screen
-    // if (isCheckingToken) {
-    //     return (
-    //         <View>
-    //             <Text style={styles.loadingText}>Loading...</Text>
-    //         </View>
-    //     );
-    // }
+    // Add useEffect for pulsing animation
+    useEffect(() => {
+        const pulse = Animated.sequence([
+            Animated.timing(pulseAnim, {
+                toValue: 1.3,
+                duration: 1000,
+                useNativeDriver: true,
+            }),
+            Animated.timing(pulseAnim, {
+                toValue: 1,
+                duration: 1000,
+                useNativeDriver: true,
+            }),
+        ]);
+
+        Animated.loop(pulse).start();
+    }, []);
 
     //conditional rendering: block app if location permission is not granted
     if (!isLocationPermissionGranted.current) {
@@ -778,24 +870,27 @@ const NavigationPage = () => {
                         />
                     )}
 
-                    {/* Add event markers */}
-                    {events.map((event, index) => (
-                        <Marker
-                            key={event._id || index}
-                            coordinate={{
-                                latitude: event.location.latitude,
-                                longitude: event.location.longitude
-                            }}
-                            title={event.type}
-                            description={`Distance: ${event.distance.toFixed(2)} km`}
-                        >
-                            <Image
-                                source={getEventIcon(event.type)}
-                                style={{ width: 35, height: 35 }}
-                                resizeMode="contain"
-                            />
-                        </Marker>
-                    ))}
+                    {/* show events markers */}
+                    {!isHideMarkers && events.length > 0 && events.map((event, index) => {
+                        if (event.resolved) return null; //skip resolved events
+                        return (
+                            <Marker
+                                key={event._id || index}
+                                coordinate={{
+                                    latitude: event.location.latitude,
+                                    longitude: event.location.longitude
+                                }}
+                                title={event.type}
+                                description={`Distance: ${event.distance.toFixed(2)} km`}
+                            >
+                                <Image
+                                    source={getEventIcon(event.type)}
+                                    style={{ width: 35, height: 35 }}
+                                    resizeMode="contain"
+                                />
+                            </Marker>
+                        );
+                    })}
 
                     {/*Heading arrow on the user location */}
                     {isNavigating && origin && (
@@ -809,6 +904,23 @@ const NavigationPage = () => {
                             <MaterialIcons name="navigation" size={36} color="#1976D2" />
                         </Marker>
                     )}
+
+                    {!isHideMarkers && cityAlerts.map((alert) => (
+                        <React.Fragment key={`alert-${alert.id}`}>
+                            <Circle
+                                center={{ latitude: alert.lat, longitude: alert.lon }}
+                                radius={5000} // adjust as needed for city size
+                                fillColor="rgba(255,0,0,0.3)"
+                                strokeColor="red"
+                                strokeWidth={2}
+                            />
+                            <Marker
+                                coordinate={{ latitude: alert.lat, longitude: alert.lon }}
+                                title={alert.city}
+                                description="Alert Area"
+                            />
+                        </React.Fragment>
+                    ))}
                 </MapView>
             )}
 
@@ -832,16 +944,19 @@ const NavigationPage = () => {
                     style={isDarkMode ? styles.recenterButtonDark : styles.recenterButton}
                     onPress={async () => {
                         let coords = origin;
-
                         if (!coords) {
-                            const location = await Location.getCurrentPositionAsync({});
-                            coords = {
-                                latitude: location.coords.latitude,
-                                longitude: location.coords.longitude,
-                            };
-                            setOrigin(coords);
+                            try {
+                                const location = await getCurrentPositionWithRetry();
+                                coords = {
+                                    latitude: location.coords.latitude,
+                                    longitude: location.coords.longitude,
+                                };
+                                setOrigin(coords);
+                            } catch (e) {
+                                Alert.alert('Error', 'Unable to get your location after several attempts.');
+                                return;
+                            }
                         }
-
                         if (coords && mapRef.current) {
                             mapRef.current.animateCamera({
                                 center: coords,

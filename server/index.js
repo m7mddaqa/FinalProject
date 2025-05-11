@@ -41,13 +41,13 @@ io.on('connection', (socket) => {
 setInterval(async () => {
   try {
     const expiredEvents = await Event.find({
-      createdAt: { $lt: new Date(Date.now() - 300000) } // 5 minutes ago
+      createdAt: { $lt: new Date(Date.now() - 3600000) } // 60 minutes ago
     });
     
     if (expiredEvents.length > 0) {
       //remove expired events
       await Event.deleteMany({
-        createdAt: { $lt: new Date(Date.now() - 300000) }
+        createdAt: { $lt: new Date(Date.now() - 3600000) }
       });
       
       //notify all clients
@@ -79,7 +79,7 @@ mongoose.connect(MONGODB_URI)
       await collection.dropIndex('createdAt_1');
       console.log('[TTL] Old TTL index dropped');
     }
-    await collection.createIndex({ createdAt: 1 }, { expireAfterSeconds: 300 });
+    await collection.createIndex({ createdAt: 1 }, { expireAfterSeconds: 3600 });
     console.log('[TTL] Correct TTL index created');
   })
   .catch(err => console.error('[DB] MongoDB connection error:', err));
@@ -90,6 +90,52 @@ app.use('/api', loginRouter);
 app.use('/api', eventsRouter);
 app.use('/api', searchHistoryRouter);
 app.use('/api', userRouter);
+
+// Add alerts endpoint
+app.post('/api/alerts', (req, res) => {
+    try {
+        console.log('[API] Received alert request:', {
+            body: req.body,
+            headers: req.headers,
+            method: req.method,
+            path: req.path,
+            ip: req.ip,
+            ips: req.ips
+        });
+
+        const alert = req.body;
+        if (!alert || !alert.city || !alert.lat || !alert.lon) {
+            console.error('[API] Invalid alert data:', alert);
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Invalid alert data. Required fields: city, lat, lon' 
+            });
+        }
+
+        console.log('[API] Broadcasting alert:', alert);
+        // Broadcast the alert to all connected clients
+        io.emit('cityAlert', alert);
+        console.log('[API] Alert broadcasted successfully');
+        res.json({ success: true, message: 'Alert broadcasted' });
+    } catch (error) {
+        console.error('[API] Error handling alert:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Add a test endpoint with more detailed response
+app.get('/api/test', (req, res) => {
+    console.log('[API] Test endpoint hit:', {
+        ip: req.ip,
+        ips: req.ips,
+        headers: req.headers
+    });
+    res.json({ 
+        message: 'Server is running',
+        timestamp: new Date().toISOString(),
+        clientIp: req.ip
+    });
+});
 
 //root
 app.get('/', (req, res) => {

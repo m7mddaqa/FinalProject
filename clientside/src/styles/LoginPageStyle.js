@@ -60,7 +60,9 @@ export const styles = StyleSheet.create({
     bottomButtons: {
         flexDirection: 'row',
         gap: 15,
-        marginHorizontal: -5
+        marginHorizontal: -5,
+        flexWrap: 'wrap',
+        justifyContent: 'center',
     },
     signupNavigate: {
         fontSize: 14,

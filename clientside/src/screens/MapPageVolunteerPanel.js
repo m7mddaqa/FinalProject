@@ -11,7 +11,7 @@ const VolunteerPanel = ({setShowVolunteerPanel, volunteerReports, handleResolveR
     if (isMenuVisible || showAllSteps) return null;
 
     //sort reports by distance
-    const sortedReports = [...volunteerReports].sort((a, b) => a.distance - b.distance);
+    const sortedReports = [...volunteerReports].filter(item=>item.category !== 'normal').sort((a, b) => a.distance - b.distance); //sort by disance and filter out normal reports
 
     const getEventColor = (type) => {
         switch (type.toLowerCase()) {
@@ -32,13 +32,12 @@ const VolunteerPanel = ({setShowVolunteerPanel, volunteerReports, handleResolveR
 
     return (
         <View style={isDarkMode ? styles.volunteerPanelDark : styles.volunteerPanel}>
-            <Text style={isDarkMode ? styles.volunteerTitleDark : styles.volunteerTitle}>Volunteer Dashboard</Text>
-            <TouchableOpacity 
-                style={styles.closeButton}
-                onPress={() => setShowVolunteerPanel(false)}
-            >
-                <Ionicons name="close" style={isDarkMode ? styles.closeButtonIconDark : styles.closeButtonIcon} />
-            </TouchableOpacity>
+            <View style={styles.volunteerHeaderRow}>
+                <Text style={isDarkMode ? styles.volunteerTitleDark : styles.volunteerTitle}>Volunteer Dashboard</Text>
+                <TouchableOpacity onPress={() => setShowVolunteerPanel(false)}>
+                    <Ionicons name="close" style={isDarkMode ? styles.closeButtonIconDark : styles.closeButtonIcon} />
+                </TouchableOpacity>
+            </View>
             <ScrollView style={styles.volunteerReportsList}>
                 {sortedReports.length === 0 && (
                     <Text style={isDarkMode ? styles.noReportsTextDark : styles.noReportsText}>No reports available</Text>

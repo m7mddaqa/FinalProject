@@ -4,6 +4,8 @@ import { styles } from '../styles/SignupPageStyle';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {URL} from '@env';
+import { BackHandler } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 
 const SignupPage = props => {
     const [email, setEmail] = useState('');
@@ -32,12 +34,23 @@ const SignupPage = props => {
                     setIsCheckingToken(false); //allow the login page to render if no token exists
                 }
             } catch (err) {
-                console.error('Error checking token:', err);
+                console.log('Error checking token:', err);
                 setIsCheckingToken(false); //handle errors and allow login page to render
             }
         };
         checkToken();
     }, []);
+
+    useFocusEffect(
+        React.useCallback(() => {
+            const onBackPress = () => {
+                props.navigation.replace('LoginPage');
+                return true;
+            };
+            BackHandler.addEventListener('hardwareBackPress', onBackPress);
+            return () => BackHandler.removeEventListener('hardwareBackPress', onBackPress);
+        }, [props.navigation])
+    );
 
     const validateEmail = email => {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -97,7 +110,7 @@ const SignupPage = props => {
             }
             console.log("all inputs are valid, sending to backend...")
             //send the inputs to the backend to validate them, and save the user if everything works properly.
-            const response = await axios.post(`${URL}/signup`, {
+            const response = await axios.post(`${URL}/api/signup`, {
                 email: email,
                 username: username,
                 password: password,
@@ -111,11 +124,11 @@ const SignupPage = props => {
         } catch (err) {
             //extract and log the specific error message from the server
             if (err.response.data.message) {
-                console.error('Server Error:', err.response.data.message);
+                console.log('Server Error:', err.response.data.message);
                 setError(err.response.data.message);
                 //for any other unidentified errors
             } else {
-                console.error('Unexpected Error:', err);
+                console.log('Unexpected Error:', err);
                 setError('An unexpected error occurred. Please try again later.');
             }
         } finally {
@@ -199,11 +212,9 @@ const SignupPage = props => {
 
                 <View style={styles.bottomButtons}>
                     <TouchableOpacity onPress={() => props.navigation.replace('LoginPage')} disabled={loading}>
-                        <Text style={styles.loginNavigate}>Already have an account</Text>
+                        <Text style={styles.loginNavigate}>Already have an account?</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => props.navigation.replace('LoginPage')} disabled={loading}>
-                        <Text style={styles.forgotPasswordNavigate}>Forgot your password?</Text>
-                    </TouchableOpacity>
+
                 </View>
                 <Text style={styles.errorText}>{error}</Text>
             </View>
