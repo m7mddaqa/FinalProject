@@ -80,18 +80,6 @@ const NavigationPage = () => {
     //new: reference to save last camera center
     const lastCamera = useRef({});
 
-    // Helper: Retry getting current position
-    const getCurrentPositionWithRetry = async (maxRetries = 5, delay = 2000) => {
-        for (let attempt = 1; attempt <= maxRetries; attempt++) {
-            try {
-                return await Location.getCurrentPositionAsync({});
-            } catch (e) {
-                if (attempt === maxRetries) throw e;
-                await new Promise(res => setTimeout(res, delay));
-            }
-        }
-    };
-
     //functions:
 
     const handleAddEvent = async () => {
@@ -183,7 +171,7 @@ const NavigationPage = () => {
     const checkRouteDeviation = async () => {
         if (!origin || !routeCoordinates.length) return;
         try {
-            const { coords } = await getCurrentPositionWithRetry();
+            const { coords } = await Location.getCurrentPositionAsync({});
             const distance = calculateDistanceToRoute(
                 { latitude: coords.latitude, longitude: coords.longitude },
                 routeCoordinates
@@ -945,18 +933,14 @@ const NavigationPage = () => {
                     onPress={async () => {
                         let coords = origin;
                         if (!coords) {
-                            try {
-                                const location = await getCurrentPositionWithRetry();
-                                coords = {
-                                    latitude: location.coords.latitude,
-                                    longitude: location.coords.longitude,
-                                };
-                                setOrigin(coords);
-                            } catch (e) {
-                                Alert.alert('Error', 'Unable to get your location after several attempts.');
-                                return;
-                            }
+                            const location = await Location.getCurrentPositionAsync({});
+                            coords = {
+                                latitude: location.coords.latitude,
+                                longitude: location.coords.longitude,
+                            };
+                            setOrigin(coords);
                         }
+
                         if (coords && mapRef.current) {
                             mapRef.current.animateCamera({
                                 center: coords,
