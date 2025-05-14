@@ -86,6 +86,23 @@ const MapPageMenu = ({
                 <Text style={themeStyles.text}>Plan a drive</Text>
             </TouchableOpacity>
 
+            <TouchableOpacity
+                style={themeStyles.menuItem}
+                onPress={() => navigation.navigate('UsersScoreboard', { setSearchHistory })}
+            >
+                <MaterialIcons name="emoji-events" size={24} color={themeStyles.icon} />
+                <Text style={themeStyles.text}>Users scoreboard</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+                style={themeStyles.menuItem}
+                onPress={() => navigation.navigate('VolunteersScoreboard', { setSearchHistory })}
+            >
+                <MaterialIcons name="leaderboard" size={24} color={themeStyles.icon} />
+                <Text style={themeStyles.text}>Volunteers scoreboard</Text>
+            </TouchableOpacity>
+
+
             <TouchableOpacity style={themeStyles.menuItem}>
                 <MaterialIcons name="chat" size={24} color={themeStyles.icon} />
                 <Text style={themeStyles.text}>Inbox</Text>

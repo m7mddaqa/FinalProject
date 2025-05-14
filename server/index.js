@@ -15,8 +15,11 @@ import loginRouter from './Routers/loginRouter.js';
 import searchHistoryRouter from './Routers/searchHistoryRouter.js';
 import userRouter from './Routers/userRouter.js';
 import eventsRouter from './Routers/eventsRouter.js';
+import volunteersScoreboardRouter from './Routers/VolunteersScoreboardRouter.js';
+import usersScoreboardRouter from './Routers/UsersScoreboardRouter.js';
 
 import Event from './Schemas/Event.js';
+import User from './Schemas/User.js';
 
 dotenv.config();
 const app = express();
@@ -90,6 +93,8 @@ app.use('/api', loginRouter);
 app.use('/api', eventsRouter);
 app.use('/api', searchHistoryRouter);
 app.use('/api', userRouter);
+app.use('/api', volunteersScoreboardRouter);
+app.use('/api', usersScoreboardRouter);
 
 // Add alerts endpoint
 app.post('/api/alerts', (req, res) => {
@@ -144,5 +149,5 @@ app.get('/', (req, res) => {
 
 //start server
 server.listen(3001, '0.0.0.0', () => {
-  console.log('Server is running on http://10.0.0.16:3001');
+  console.log('Server is running on http://192.168.1.233:3001');
 });

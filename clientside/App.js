@@ -15,13 +15,15 @@ import ProfilePage from './src/screens/ProfilePage';
 import Settings from './src/screens/Settings';
 import EventDetailsScreen from './src/screens/EventDetailsScreen';
 import ReportDetailsScreen from './src/screens/ReportDetailsScreen';
+import VolunteersScoreboard from './src/screens/VolunteersScoreboard';
+import UsersScoreboard from './src/screens/UsersScoreboard';
 
 const Stack = createNativeStackNavigator();
 function MyStack() {
   return (
     <Stack.Navigator>
 
-<Stack.Screen
+      <Stack.Screen
         name="MapPage"
         component={MapPage}
         options={{
@@ -41,23 +43,23 @@ function MyStack() {
         }}
       />
 
-<Stack.Screen
-  name="SignupPage"
-  component={SignupPage}
-  options={({ navigation }) => ({
-    title: 'Signup for an account',
-    headerStyle: { backgroundColor: '#067ef5' },
-    headerTintColor: '#fff',
-    headerTitleStyle: { fontWeight: 'bold' },
-    headerLeft: (props) => (
-      <HeaderBackButton
-        {...props}
-        onPress={() => navigation.replace('LoginPage')}
-        style={{ marginLeft: -5 }}
+      <Stack.Screen
+        name="SignupPage"
+        component={SignupPage}
+        options={({ navigation }) => ({
+          title: 'Signup for an account',
+          headerStyle: { backgroundColor: '#067ef5' },
+          headerTintColor: '#fff',
+          headerTitleStyle: { fontWeight: 'bold' },
+          headerLeft: (props) => (
+            <HeaderBackButton
+              {...props}
+              onPress={() => navigation.replace('LoginPage')}
+              style={{ marginLeft: -5 }}
+            />
+          ),
+        })}
       />
-    ),
-  })}
-/>
 
       <Stack.Screen
         name="ProfilePage"
@@ -90,6 +92,24 @@ function MyStack() {
         component={ReportDetailsScreen}
         options={{
           title: 'Add Report Details',
+          headerShown: false,
+        }}
+      />
+
+      <Stack.Screen
+        name="VolunteersScoreboard"
+        component={VolunteersScoreboard}
+        options={{
+          title: 'Volunteers Scoreboard',
+          headerShown: false,
+        }}
+      />
+
+      <Stack.Screen
+        name="UsersScoreboard"
+        component={UsersScoreboard}
+        options={{
+          title: 'Users Scoreboard',
           headerShown: false,
         }}
       />

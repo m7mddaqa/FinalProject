@@ -116,8 +116,6 @@ const NavigationPage = () => {
         handleMenuToggle(isMenuVisible, slideAnim, setIsMenuVisible);
     };
 
-
-
     //function to start navigation with fixed zoom and map rotation.
     const handleStartNavigation = () => {
         if (isNavigating) return; //guard to prevent repeated starts
@@ -135,6 +133,16 @@ const NavigationPage = () => {
         }
     };
 
+    // Add compass button handler
+    const handleCompassPress = () => {
+        if (mapRef.current) {
+            const cameraConfig = Platform.OS === 'ios'
+                ? { heading: 0, pitch: 0, duration: 700 }
+                : { heading: 0, pitch: 0, duration: 700 };
+            mapRef.current.animateCamera(cameraConfig);
+            lastCamera.current = { ...lastCamera.current, ...cameraConfig };
+        }
+    };
 
     const handleResolveReport = async (reportId) => {
         try {
@@ -152,7 +160,6 @@ const NavigationPage = () => {
         }
     };
 
-
     //function to fetch events
     const fetchEvents = async () => {
         if (origin) {
@@ -165,7 +172,6 @@ const NavigationPage = () => {
             }
         }
     };
-
 
     //add this function to check if user is off route
     const checkRouteDeviation = async () => {
@@ -212,7 +218,6 @@ const NavigationPage = () => {
             getHideMarkers();
         }, [])
     );
-
 
     //check if token exists
     useEffect(() => {
@@ -483,8 +488,6 @@ const NavigationPage = () => {
         };
     }, []);
 
-
-
     //unified heading tracking using Location.watchHeadingAsync for both Android and iOS
     useEffect(() => {
         let headingSubscription = null;
@@ -583,8 +586,6 @@ const NavigationPage = () => {
                 setIsCheckingToken(false);
                 setIsVolunteerUser(false);
                 return;
-
-
             }
             const volunteerStatus = await isVolunteer();
             setIsVolunteerUser(volunteerStatus === true);
@@ -694,7 +695,6 @@ const NavigationPage = () => {
         setShowVolunteerPanel(prev => !prev);
     };
 
-
     //add this useEffect to periodically check route deviation
     useEffect(() => {
         const interval = setInterval(() => {
@@ -738,8 +738,6 @@ const NavigationPage = () => {
         );
         setIsInternationalSearch(isInternational);
     };
-
-
 
     //useEffect to fetch events when origin changes
     useEffect(() => {
@@ -816,27 +814,36 @@ const NavigationPage = () => {
             {/* 🗺️ Map View */}
             {mapRegion && (
                 <MapView
-                    provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-                    rotateEnabled={true}
-                    pitchEnabled={false}
                     ref={mapRef}
                     style={styles.map}
-                    initialRegion={mapRegion}
-                    showsUserLocation={!isNavigating}
-                    showsUserHeadingIndicator={true}
-                    followsUserLocation={followsUserLocation}
-                    userLocationUpdateInterval={1000}
-                    userLocationFastestInterval={1000}
-                    showsCompass={true}
-                    loadingEnabled={true}
+                    provider={PROVIDER_GOOGLE}
+                    showsUserLocation
                     showsMyLocationButton={false}
+                    showsCompass={false}
+                    rotateEnabled={true}
+                    scrollEnabled={true}
+                    pitchEnabled={true}
+                    zoomEnabled={true}
+                    onUserLocationChange={(e) => {
+                        if (followsUserLocation) {
+                            const { latitude, longitude } = e.nativeEvent.coordinate;
+                            setOrigin({ latitude, longitude });
+                        }
+                    }}
+                    onRegionChangeComplete={(region) => {
+                        setMapRegion(region);
+                    }}
                     onPanDrag={() => {
-                        if (isNavigating && followsUserLocation) {
-                            isUserInteracting.current = true;
-                            // On Android, keep following to preserve native blue arrow
-                            if (Platform.OS !== 'android') {
-                                setFollowsUserLocation(false);
-                            }
+                        isUserInteracting.current = true;
+                    }}
+                    onRegionChange={(region) => {
+                        if (isUserInteracting.current) {
+                            lastCamera.current = {
+                                center: { latitude: region.latitude, longitude: region.longitude },
+                                heading: region.heading,
+                                pitch: region.pitch,
+                                zoom: region.zoom
+                            };
                         }
                     }}
                 >
@@ -1052,6 +1059,18 @@ const NavigationPage = () => {
                     showAllSteps={showAllSteps}
                 />
             )}
+
+            {/* Add compass button */}
+            <TouchableOpacity 
+                style={isDarkMode ? styles.compassButtonDark : styles.compassButton}
+                onPress={handleCompassPress}
+            >
+                <MaterialCommunityIcons 
+                    name="compass" 
+                    size={24} 
+                    color={isDarkMode ? '#FFFFFF' : '#000000'} 
+                />
+            </TouchableOpacity>
         </View>
     );
 
