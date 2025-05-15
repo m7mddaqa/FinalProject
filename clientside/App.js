@@ -17,13 +17,15 @@ import EventDetailsScreen from './src/screens/EventDetailsScreen';
 import ReportDetailsScreen from './src/screens/ReportDetailsScreen';
 import VolunteersScoreboard from './src/screens/VolunteersScoreboard';
 import UsersScoreboard from './src/screens/UsersScoreboard';
+import ResolvedEventsScreen from './src/screens/ResolvedEventsScreen';
+import ResolvedEventDetailsScreen from './src/screens/ResolvedEventDetailsScreen';
 
 const Stack = createNativeStackNavigator();
 function MyStack() {
   return (
     <Stack.Navigator>
 
-      <Stack.Screen
+<Stack.Screen
         name="MapPage"
         component={MapPage}
         options={{
@@ -43,23 +45,23 @@ function MyStack() {
         }}
       />
 
-      <Stack.Screen
-        name="SignupPage"
-        component={SignupPage}
-        options={({ navigation }) => ({
-          title: 'Signup for an account',
-          headerStyle: { backgroundColor: '#067ef5' },
-          headerTintColor: '#fff',
-          headerTitleStyle: { fontWeight: 'bold' },
-          headerLeft: (props) => (
-            <HeaderBackButton
-              {...props}
-              onPress={() => navigation.replace('LoginPage')}
-              style={{ marginLeft: -5 }}
-            />
-          ),
-        })}
+<Stack.Screen
+  name="SignupPage"
+  component={SignupPage}
+  options={({ navigation }) => ({
+    title: 'Signup for an account',
+    headerStyle: { backgroundColor: '#067ef5' },
+    headerTintColor: '#fff',
+    headerTitleStyle: { fontWeight: 'bold' },
+    headerLeft: (props) => (
+      <HeaderBackButton
+        {...props}
+        onPress={() => navigation.replace('LoginPage')}
+        style={{ marginLeft: -5 }}
       />
+    ),
+  })}
+/>
 
       <Stack.Screen
         name="ProfilePage"
@@ -110,6 +112,24 @@ function MyStack() {
         component={UsersScoreboard}
         options={{
           title: 'Users Scoreboard',
+          headerShown: false,
+        }}
+      />
+
+      <Stack.Screen
+        name="ResolvedEvents"
+        component={ResolvedEventsScreen}
+        options={{
+          title: 'Resolved Events',
+          headerShown: false,
+        }}
+      />
+
+      <Stack.Screen
+        name="ResolvedEventDetails"
+        component={ResolvedEventDetailsScreen}
+        options={{
+          title: 'Event Details',
           headerShown: false,
         }}
       />

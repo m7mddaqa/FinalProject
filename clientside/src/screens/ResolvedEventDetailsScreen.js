@@ -1,22 +1,24 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet, ScrollView, ActivityIndicator, Linking, Alert, Modal } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Linking, Platform, Modal, ActivityIndicator, Alert } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
-import { URL } from '@env';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import MapView, { Marker } from 'react-native-maps';
 import { Video } from 'expo-av';
+import { URL } from '@env';
 
-const EventDetailsScreen = () => {
+const ResolvedEventDetailsScreen = () => {
+    const { isDarkMode } = useTheme();
     const navigation = useNavigation();
     const route = useRoute();
     const { event } = route.params;
-    const { theme, isDarkMode } = useTheme();
-    const [imageError, setImageError] = useState(false);
-    const [imageLoading, setImageLoading] = useState(true);
     const [showVideoModal, setShowVideoModal] = useState(false);
     const [selectedVideo, setSelectedVideo] = useState(null);
     const [videoLoading, setVideoLoading] = useState(false);
     const [videoError, setVideoError] = useState(false);
+    const [imageError, setImageError] = useState(false);
+    const [imageLoading, setImageLoading] = useState(true);
     const videoRef = useRef(null);
 
     const isVideo = event.image?.endsWith('.mp4');
@@ -99,7 +101,6 @@ const EventDetailsScreen = () => {
         }
     };
 
-
     const renderVideoModal = () => {
         if (!selectedVideo) return null;
 
@@ -171,6 +172,23 @@ const EventDetailsScreen = () => {
         );
     };
 
+    const getEventColor = (type) => {
+        switch (type.toLowerCase()) {
+            case 'fire':
+                return isDarkMode ? '#FF453A' : '#FF3B30';
+            case 'flood':
+                return isDarkMode ? '#0A84FF' : '#007AFF';
+            case 'earthquake':
+                return isDarkMode ? '#FF9F0A' : '#FF9500';
+            case 'medical':
+                return isDarkMode ? '#32D74B' : '#34C759';
+            case 'security':
+                return isDarkMode ? '#BF5AF2' : '#AF52DE';
+            default:
+                return isDarkMode ? '#0A84FF' : '#007AFF';
+        }
+    };
+
     const renderMedia = () => {
         if (!event.image) return null;
 
@@ -185,12 +203,6 @@ const EventDetailsScreen = () => {
                         <Ionicons name="videocam" size={64} color="#666" />
                         <Text style={styles.videoText}>Tap to play video</Text>
                     </View>
-                    {imageError && (
-                        <View style={styles.errorContainer}>
-                            <Text style={styles.errorText}>Failed to load video</Text>
-                            <Text style={styles.errorSubtext}>URL: {videoUrl}</Text>
-                        </View>
-                    )}
                 </TouchableOpacity>
             );
         }
@@ -207,7 +219,7 @@ const EventDetailsScreen = () => {
                         uri: getImageUrl(),
                         cache: 'force-cache'
                     }}
-                    style={styles.eventImage}
+                    style={styles.image}
                     resizeMode="contain"
                     onLoadStart={() => {
                         setImageLoading(true);
@@ -231,195 +243,259 @@ const EventDetailsScreen = () => {
         );
     };
 
+    const openMaps = () => {
+        const url = Platform.select({
+            ios: `maps:${event.location.latitude},${event.location.longitude}?q=${event.location.latitude},${event.location.longitude}`,
+            android: `geo:${event.location.latitude},${event.location.longitude}?q=${event.location.latitude},${event.location.longitude}`
+        });
+        Linking.openURL(url);
+    };
+
     return (
-        <View style={[styles.container, { backgroundColor: isDarkMode ? '#121212' : '#fff' }]}>
+        <ScrollView style={[styles.container, isDarkMode ? styles.containerDark : null]}>
             <View style={styles.header}>
-                <TouchableOpacity
-                    style={styles.backButton}
+                <MaterialIcons
+                    name="arrow-back"
+                    size={24}
+                    color={isDarkMode ? '#FFFFFF' : '#000000'}
                     onPress={() => navigation.goBack()}
-                >
-                    <Ionicons name="arrow-back" size={24} color={isDarkMode ? '#fff' : '#000'} />
-                </TouchableOpacity>
-                <Text style={[styles.headerTitle, { color: isDarkMode ? '#fff' : '#000' }]}>
+                    style={styles.backButton}
+                />
+                <Text style={[styles.title, isDarkMode ? styles.titleDark : null]}>
                     Event Details
                 </Text>
             </View>
 
-            <ScrollView style={styles.content}>
-                {renderMedia()}
-
-                <View style={styles.detailsContainer}>
-                    <Text style={[styles.eventType, { color: isDarkMode ? '#fff' : '#000' }]}>
-                        {event.type}
+            <View style={[styles.content, isDarkMode ? styles.contentDark : null]}>
+                <View style={styles.section}>
+                    <Text style={[styles.sectionTitle, isDarkMode ? styles.sectionTitleDark : null]}>
+                        Event Information
                     </Text>
+                    <View style={styles.infoRow}>
+                        <Text style={[styles.label, isDarkMode ? styles.labelDark : null]}>Type:</Text>
+                        <Text style={[
+                            styles.value,
+                            isDarkMode ? styles.valueDark : null,
+                            { color: getEventColor(event.type) }
+                        ]}>
+                            {event.type}
+                        </Text>
+                    </View>
+                    <View style={styles.infoRow}>
+                        <Text style={[styles.label, isDarkMode ? styles.labelDark : null]}>Reported by:</Text>
+                        <Text style={[styles.value, isDarkMode ? styles.valueDark : null]}>
+                            {event.userInfo?.name || 'Anonymous'}
+                        </Text>
+                    </View>
+                    <View style={styles.infoRow}>
+                        <Text style={[styles.label, isDarkMode ? styles.labelDark : null]}>Resolved at:</Text>
+                        <Text style={[styles.value, isDarkMode ? styles.valueDark : null]}>
+                            {new Date(event.resolvedAt).toLocaleString()}
+                        </Text>
+                    </View>
+                </View>
 
-                    {event.description && (
-                        <Text style={[styles.description, { color: isDarkMode ? '#ccc' : '#666' }]}>
+                {event.description && (
+                    <View style={styles.section}>
+                        <Text style={[styles.sectionTitle, isDarkMode ? styles.sectionTitleDark : null]}>
+                            Description
+                        </Text>
+                        <Text style={[styles.description, isDarkMode ? styles.descriptionDark : null]}>
                             {event.description}
                         </Text>
-                    )}
-
-                    <View style={styles.infoContainer}>
-                        <View style={styles.infoRow}>
-                            <Ionicons name="time-outline" size={20} color={isDarkMode ? '#ccc' : '#666'} />
-                            <Text style={[styles.infoText, { color: isDarkMode ? '#ccc' : '#666' }]}>
-                                {new Date(event.createdAt).toLocaleString()}
-                            </Text>
-                        </View>
-
-                        <View style={styles.infoRow}>
-                            <Ionicons name="person-outline" size={20} color={isDarkMode ? '#ccc' : '#666'} />
-                            <Text style={[styles.infoText, { color: isDarkMode ? '#ccc' : '#666' }]}>
-                                Reported by: {event.userInfo?.name || 'Anonymous User'}
-                            </Text>
-                        </View>
-
-                        {event.distance !== undefined && (
-                            <View style={styles.infoRow}>
-                                <Ionicons name="location-outline" size={20} color={isDarkMode ? '#ccc' : '#666'} />
-                                <Text style={[styles.infoText, { color: isDarkMode ? '#ccc' : '#666' }]}>
-                                    {event.distance.toFixed(2)} km away
-                                </Text>
-                            </View>
-                        )}
-
-                        <View style={styles.infoRow}>
-                            <Ionicons name="navigate-outline" size={20} color={isDarkMode ? '#ccc' : '#666'} />
-                            <Text style={[styles.infoText, { color: isDarkMode ? '#ccc' : '#666' }]}>
-                                {event.OnWayVolunteers.count} volunteers are on their way
-                            </Text>
-                        </View>
-                        
-                        <View style={styles.infoRow}>
-                            <Ionicons name="checkmark-circle-outline" size={20} color={isDarkMode ? '#ccc' : '#666'} />
-                            <Text style={[styles.infoText, { color: isDarkMode ? '#ccc' : '#666' }]}>
-                                {event.ArrivedVolunteers.count} volunteers have arrived
-                            </Text>
-                        </View>
-
                     </View>
+                )}
 
-                    <TouchableOpacity
-                        style={[styles.checkDetailsButton, { backgroundColor: isDarkMode ? '#007AFF' : '#007AFF' }]}
-                        onPress={() => navigation.navigate('MapPage', { event, from: 'EventDetails' })}
-                    >
-                        <Text style={styles.checkDetailsButtonText}>Go to Location</Text>
+                <View style={styles.section}>
+                    <Text style={[styles.sectionTitle, isDarkMode ? styles.sectionTitleDark : null]}>
+                        Location
+                    </Text>
+                    <TouchableOpacity onPress={openMaps} style={styles.mapContainer}>
+                        <MapView
+                            style={styles.map}
+                            initialRegion={{
+                                latitude: event.location.latitude,
+                                longitude: event.location.longitude,
+                                latitudeDelta: 0.01,
+                                longitudeDelta: 0.01,
+                            }}
+                            scrollEnabled={false}
+                            zoomEnabled={false}
+                        >
+                            <Marker
+                                coordinate={{
+                                    latitude: event.location.latitude,
+                                    longitude: event.location.longitude,
+                                }}
+                            />
+                        </MapView>
+                        <View style={styles.mapOverlay}>
+                            <MaterialIcons name="open-in-new" size={24} color="#FFFFFF" />
+                        </View>
                     </TouchableOpacity>
                 </View>
-            </ScrollView>
+
+                {event.image && (
+                    <View style={styles.section}>
+                        <Text style={[styles.sectionTitle, isDarkMode ? styles.sectionTitleDark : null]}>
+                            Media
+                        </Text>
+                        {renderMedia()}
+                    </View>
+                )}
+
+                <View style={styles.section}>
+                    <Text style={[styles.sectionTitle, isDarkMode ? styles.sectionTitleDark : null]}>
+                        Participating Volunteers
+                    </Text>
+                    {event.participatingVolunteers?.map((volunteer, index) => (
+                        <View key={index} style={styles.volunteerItem}>
+                            <MaterialIcons
+                                name="person"
+                                size={24}
+                                color={isDarkMode ? '#FFFFFF' : '#000000'}
+                            />
+                            <Text style={[styles.volunteerName, isDarkMode ? styles.volunteerNameDark : null]}>
+                                {volunteer.username}
+                            </Text>
+                        </View>
+                    ))}
+                </View>
+            </View>
 
             {renderVideoModal()}
-        </View>
+        </ScrollView>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
+        backgroundColor: '#FFFFFF',
+    },
+    containerDark: {
+        backgroundColor: '#121212',
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 16,
-        paddingTop: 24,
+        paddingTop: 50,
+        paddingBottom: 20,
+        paddingHorizontal: 20,
         borderBottomWidth: 1,
-        borderBottomColor: '#eee',
+        borderBottomColor: '#E0E0E0',
     },
     backButton: {
-        marginRight: 16,
-        paddingVertical: 8,
+        marginRight: 15,
     },
-    headerTitle: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        paddingVertical: 8,
-    },
-    content: {
-        flex: 1,
-    },
-    imageContainer: {
-        width: '100%',
-        height: 300,
-        backgroundColor: '#f5f5f5',
-    },
-    eventImage: {
-        width: '100%',
-        height: '100%',
-    },
-    loadingContainer: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    errorContainer: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: 'rgba(0,0,0,0.1)',
-    },
-    errorText: {
-        color: '#ff3b30',
-        fontSize: 16,
-        fontWeight: 'bold',
-    },
-    errorSubtext: {
-        color: '#ff3b30',
-        fontSize: 14,
-        marginTop: 4,
-    },
-    detailsContainer: {
-        padding: 16,
-    },
-    eventType: {
+    title: {
         fontSize: 24,
         fontWeight: 'bold',
-        marginBottom: 8,
+        color: '#000000',
     },
-    description: {
-        fontSize: 16,
-        marginBottom: 16,
-        lineHeight: 24,
+    titleDark: {
+        color: '#FFFFFF',
     },
-    infoContainer: {
-        marginTop: 16,
+    content: {
+        padding: 16,
+    },
+    contentDark: {
+        backgroundColor: '#121212',
+    },
+    section: {
+        marginBottom: 24,
+    },
+    sectionTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#000000',
+        marginBottom: 12,
+    },
+    sectionTitleDark: {
+        color: '#FFFFFF',
     },
     infoRow: {
         flexDirection: 'row',
-        alignItems: 'center',
         marginBottom: 8,
     },
-    infoText: {
-        marginLeft: 8,
+    label: {
         fontSize: 16,
+        color: '#666666',
+        width: 100,
     },
-    videoContainer: {
+    labelDark: {
+        color: '#AAAAAA',
+    },
+    value: {
+        fontSize: 16,
+        color: '#000000',
+        flex: 1,
+    },
+    valueDark: {
+        color: '#FFFFFF',
+    },
+    description: {
+        fontSize: 16,
+        color: '#666666',
+        lineHeight: 24,
+    },
+    descriptionDark: {
+        color: '#AAAAAA',
+    },
+    mapContainer: {
+        height: 200,
+        borderRadius: 8,
+        overflow: 'hidden',
+        position: 'relative',
+    },
+    map: {
+        ...StyleSheet.absoluteFillObject,
+    },
+    mapOverlay: {
+        position: 'absolute',
+        bottom: 8,
+        right: 8,
+        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+        borderRadius: 20,
+        padding: 8,
+    },
+    imageContainer: {
         width: '100%',
-        height: 300,
-        backgroundColor: '#f5f5f5',
+        height: 200,
+        borderRadius: 8,
+        overflow: 'hidden',
+        backgroundColor: '#f0f0f0',
+    },
+    loadingContainer: {
+        ...StyleSheet.absoluteFillObject,
         justifyContent: 'center',
         alignItems: 'center',
+        backgroundColor: 'rgba(255, 255, 255, 0.8)',
     },
-    videoContent: {
+    errorContainer: {
+        ...StyleSheet.absoluteFillObject,
+        justifyContent: 'center',
         alignItems: 'center',
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
     },
-    videoText: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        marginTop: 16,
-        color: '#666',
+    image: {
+        width: '100%',
+        height: '100%',
     },
-    videoSubtext: {
-        fontSize: 14,
-        color: '#666',
-        marginTop: 8,
+    volunteerItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 8,
+        borderBottomWidth: 1,
+        borderBottomColor: '#E0E0E0',
+    },
+    volunteerName: {
+        fontSize: 16,
+        color: '#000000',
+        marginLeft: 12,
+    },
+    volunteerNameDark: {
+        color: '#FFFFFF',
     },
     modalContainer: {
         flex: 1,
@@ -430,12 +506,12 @@ const styles = StyleSheet.create({
         width: '90%',
         height: '80%',
         borderRadius: 10,
-        padding: 16,
+        padding: 20,
     },
     closeButton: {
         position: 'absolute',
-        top: 16,
-        right: 16,
+        right: 10,
+        top: 10,
         zIndex: 1,
     },
     videoPlayer: {
@@ -443,46 +519,55 @@ const styles = StyleSheet.create({
         height: '100%',
     },
     videoLoadingContainer: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
+        flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
+    },
+    loadingText: {
+        marginTop: 10,
+        color: '#666',
     },
     videoErrorContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
     },
-    loadingText: {
-        marginTop: 16,
+    errorText: {
+        color: '#FF3B30',
         fontSize: 16,
+        marginBottom: 8,
+    },
+    errorSubtext: {
         color: '#666',
+        fontSize: 14,
+        marginBottom: 16,
     },
     retryButton: {
-        marginTop: 16,
-        padding: 12,
         backgroundColor: '#007AFF',
-        borderRadius: 8,
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        borderRadius: 5,
     },
     retryButtonText: {
         color: '#fff',
         fontSize: 16,
-        fontWeight: 'bold',
     },
-    checkDetailsButton: {
-        marginTop: 24,
-        padding: 16,
-        borderRadius: 8,
+    videoContainer: {
+        width: '100%',
+        height: 200,
+        backgroundColor: '#f0f0f0',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderRadius: 10,
+    },
+    videoContent: {
         alignItems: 'center',
     },
-    checkDetailsButtonText: {
-        color: '#fff',
+    videoText: {
+        marginTop: 10,
+        color: '#666',
         fontSize: 16,
-        fontWeight: 'bold',
     },
 });
 
-export default EventDetailsScreen; 
+export default ResolvedEventDetailsScreen; 

@@ -33,6 +33,24 @@ import { getEventIcon, calculateBearing, incrementArrivedVolunteers, incrementOn
 
 const googleMapsApiKey = MapsApiKey;
 
+// Helper function to calculate distance between two points in kilometers
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371; // Radius of the earth in km
+  const dLat = deg2rad(lat2 - lat1);
+  const dLon = deg2rad(lon2 - lon1);
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * 
+    Math.sin(dLon/2) * Math.sin(dLon/2); 
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+  const distance = R * c; // Distance in km
+  return distance;
+}
+
+function deg2rad(deg) {
+  return deg * (Math.PI/180);
+}
+
 const NavigationPage = () => {
     const [origin, setOrigin] = useState(null); //user current location
     const [destination, setDestination] = useState(null);//destination location
@@ -144,19 +162,99 @@ const NavigationPage = () => {
         }
     };
 
-    const handleResolveReport = async (reportId) => {
+    const handleResolveReport = async (report) => {
         try {
-            const token = await AsyncStorage.getItem('token');
-            await axios.put(`${URL}/events/${reportId}/resolve`, {}, {
-                headers: {
-                    Authorization: `Bearer ${token}`
+            // Validate report object and ID
+            if (!report) {
+                console.error('Report object is undefined');
+                Alert.alert('Error', 'Invalid report data. Please try again.');
+                return;
+            }
+
+            if (!report._id) {
+                console.error('Report ID is missing:', report);
+                Alert.alert('Error', 'Report ID is missing. Please try again.');
+                return;
+            }
+
+            if (!origin || !origin.latitude || !origin.longitude) {
+                console.error('Current location is missing:', origin);
+                Alert.alert('Error', 'Unable to get your current location. Please try again.');
+                return;
+            }
+
+            console.log('Attempting to resolve report:', {
+                reportId: report._id,
+                reportType: report.type,
+                location: report.location,
+                volunteerLocation: {
+                    latitude: origin.latitude,
+                    longitude: origin.longitude
                 }
             });
-            Alert.alert('Success', 'Report marked as resolved');
-            fetchVolunteerReports(setVolunteerReports);
+            
+            const token = await AsyncStorage.getItem('token');
+            if (!token) {
+                console.error('No authentication token found');
+                Alert.alert('Error', 'You must be logged in to resolve reports.');
+                return;
+            }
+
+            const response = await fetch(`${URL}/api/events/${report._id}/resolve`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    volunteerLat: origin.latitude,
+                    volunteerLon: origin.longitude
+                })
+            });
+
+            const data = await response.json();
+            console.log('Resolve response:', data);
+
+            if (!response.ok) {
+                if (response.status === 400 && data.message === 'This event has already been resolved') {
+                    setVolunteerReports(prevReports => 
+                        prevReports.map(r => 
+                            r._id === report._id 
+                                ? { ...r, resolved: true }
+                                : r
+                        )
+                    );
+                    Alert.alert('Notice', 'This event has already been resolved by other volunteers.');
+                    return;
+                }
+                throw new Error(data.message || 'Failed to resolve report');
+            }
+
+            Alert.alert(
+                'Report Resolved',
+                `Successfully resolved the report!\n\nParticipating volunteers:\n${data.participatingVolunteers.map(v => 
+                    `${v.username}: +10 points (New score: ${v.newScore})`
+                ).join('\n')}`,
+                [{ text: 'OK' }]
+            );
+
+            setVolunteerReports(prevReports => 
+                prevReports.map(r => 
+                    r._id === report._id 
+                        ? { ...r, resolved: true, participatingVolunteers: data.participatingVolunteers }
+                        : r
+                )
+            );
+
+            await fetchEvents();
+
         } catch (error) {
             console.error('Error resolving report:', error);
-            Alert.alert('Error', 'Failed to resolve report');
+            Alert.alert(
+                'Error',
+                error.message || 'Failed to resolve report. Please try again.',
+                [{ text: 'OK' }]
+            );
         }
     };
 
@@ -188,11 +286,7 @@ const NavigationPage = () => {
             setIsOffRoute(isDeviated);
 
             if (isDeviated) {
-                Alert.alert(
-                    "Wrong Turn Detected",
-                    "You have deviated from the route. Recalculating...",
-                    [{ text: "OK" }]
-                );
+                console.log("Wrong turn detected. Recalculating route...");
                 //trigger rerouting
                 setForceReroute(true);
             }
@@ -359,7 +453,26 @@ const NavigationPage = () => {
         }
     }, [destination]);
 
-    //track user progress and handle rerouting
+    // Add this function to handle volunteer arrival
+    const handleVolunteerArrival = async (eventId) => {
+        try {
+            const response = await fetch(`${URL}/api/events/${eventId}/arrive`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${await AsyncStorage.getItem('token')}`
+                }
+            });
+
+            if (!response.ok) {
+                console.error('Failed to mark volunteer as arrived');
+            }
+        } catch (error) {
+            console.error('Error marking volunteer as arrived:', error);
+        }
+    };
+
+    // Modify the location tracking useEffect to check for event arrival
     useEffect(() => {
         if (!origin || !instructions.length) return;
 
@@ -382,6 +495,24 @@ const NavigationPage = () => {
                         longitude: location.coords.longitude,
                     };
                     setOrigin(currLoc);
+
+                    // Check if we're near any active events
+                    if (isVolunteerUser && volunteerReports.length > 0) {
+                        volunteerReports.forEach(report => {
+                            if (!report.resolved) {
+                                const distance = calculateDistance(
+                                    currLoc.latitude,
+                                    currLoc.longitude,
+                                    report.location.latitude,
+                                    report.location.longitude
+                                );
+                                if (distance <= 0.05) { // Within 50 meters
+                                    console.log('Volunteer arrived at event:', report._id);
+                                    handleVolunteerArrival(report._id);
+                                }
+                            }
+                        });
+                    }
 
                     //calculate distance to next step in meters
                     const dLat = (instructions[currentStepIndex].endLocation.lat - currLoc.latitude) * 111000;
@@ -419,14 +550,28 @@ const NavigationPage = () => {
                         if (destinationReached || currentStepIndex === instructions.length - 1) {
                             console.log('You have reached your destination.');
                             Speech.speak('You have arrived at your destination.');
+                            
+                            // Reset all navigation-related states
                             setInstructions([]);
                             setIsVolunteerOnWay(false);
                             setDestination(null);
                             setIsNavigating(false);
                             setFollowsUserLocation(false);
-                            console.log("incrementing arrived volunteer");
-                            incrementArrivedVolunteers(event._id); //increment the number of arrived volunteers
-                            decrementOnWayVolunteers(event._id); //remove the arrived user from the "on way" volunteers since he has arrived
+                            
+                            // Reset map camera to default view
+                            if (mapRef.current) {
+                                const cameraConfig = Platform.OS === 'ios'
+                                    ? { center: currLoc, heading: 0, pitch: 0, altitude: 1000, duration: 700 }
+                                    : { center: currLoc, heading: 0, pitch: 0, zoom: 15, duration: 700 };
+                                mapRef.current.animateCamera(cameraConfig);
+                                lastCamera.current = cameraConfig;
+                            }
+
+                            if (isVolunteerOnWay) {
+                                console.log("incrementing arrived volunteer");
+                                incrementArrivedVolunteers(event._id);
+                                decrementOnWayVolunteers(event._id);
+                            }
                             return;
                         }
 
@@ -451,7 +596,7 @@ const NavigationPage = () => {
                 subscription.remove();
             }
         };
-    }, [instructions]);
+    }, [instructions, volunteerReports, isVolunteerUser]);
 
     //handling the recenter button outside of navigation mode
     useEffect(() => {
@@ -630,6 +775,19 @@ const NavigationPage = () => {
 
             socket.on('updateReports', async () => {
                 console.log('[SOCKET] Received updateReports');
+                await fetchEvents();
+                if (isVolunteerUser) {
+                    await fetchVolunteerReports(setVolunteerReports);
+                }
+            });
+
+            socket.on('eventResolved', async (data) => {
+                console.log('[SOCKET] Event resolved:', data);
+                // Update local state immediately
+                setVolunteerReports(prevReports => 
+                    prevReports.filter(report => report._id !== data.eventId)
+                );
+                // Then fetch fresh data
                 await fetchEvents();
                 if (isVolunteerUser) {
                     await fetchVolunteerReports(setVolunteerReports);

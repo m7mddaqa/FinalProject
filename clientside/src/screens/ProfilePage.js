@@ -248,16 +248,26 @@ const ProfilePage = ({ navigation }) => {
             </Modal>
 
             <View style={styles.menu}>
+                <TouchableOpacity
+                    style={styles.menuItem}
+                    onPress={() => navigation.navigate('ResolvedEvents')}
+                >
+                    <View style={styles.menuItemLeft}>
+                        <Ionicons name="checkmark-circle-outline" size={24} color="#067ef5" />
+                        <Text style={styles.menuItemText}>Resolved Events</Text>
+                    </View>
+                    <View style={styles.menuItemRight}>
+                        <Ionicons name="chevron-forward" size={24} color="#666" />
+                    </View>
+                </TouchableOpacity>
 
-                <TouchableOpacity style={styles.menuItem}>
-                    <Ionicons name="home-outline" size={24} color="black" />
-                    <Text style={styles.menuItemText}>Setup home address</Text>
+                <TouchableOpacity style={styles.menuItem} onPress={handleSignOut}>
+                    <View style={styles.menuItemLeft}>
+                        <Ionicons name="log-out-outline" size={24} color="#FF3B30" />
+                        <Text style={[styles.menuItemText, { color: '#FF3B30' }]}>Sign Out</Text>
+                    </View>
                 </TouchableOpacity>
             </View>
-
-            <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-                <Text style={styles.signOutButtonText}>Sign Out</Text>
-            </TouchableOpacity>
         </View>
     );
 };
@@ -338,22 +348,45 @@ const styles = StyleSheet.create({
     },
     menu: {
         backgroundColor: 'white',
-        borderRadius: 10,
-        paddingVertical: 10,
-        elevation: 3,
-        marginBottom: 20,
+        borderRadius: 12,
+        marginTop: 20,
+        marginHorizontal: 16,
+        paddingVertical: 8,
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 3.84,
+        elevation: 5,
     },
     menuItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 15,
+        justifyContent: 'space-between',
+        paddingVertical: 16,
+        paddingHorizontal: 16,
         borderBottomWidth: 1,
-        borderBottomColor: '#eee',
+        borderBottomColor: '#F0F0F0',
+    },
+    menuItemLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    menuItemRight: {
+        flexDirection: 'row',
+        alignItems: 'center',
     },
     menuItemText: {
         fontSize: 16,
-        color: 'black',
-        marginLeft: 10,
+        marginLeft: 12,
+        color: '#333',
+    },
+    menuItemValue: {
+        fontSize: 16,
+        color: '#666',
+        marginRight: 8,
     },
     signOutButton: {
         backgroundColor: '#f44336',

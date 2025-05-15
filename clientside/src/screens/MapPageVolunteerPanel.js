@@ -74,7 +74,7 @@ const VolunteerPanel = ({setShowVolunteerPanel, volunteerReports, handleResolveR
                             </TouchableOpacity>
                             <TouchableOpacity
                                 style={isDarkMode ? styles.resolveButtonDark : styles.resolveButton}
-                                onPress={() => handleResolveReport(report._id)}
+                                onPress={() => handleResolveReport(report)}
                             >
                                 <Text style={isDarkMode ? styles.resolveButtonTextDark : styles.resolveButtonText}>Mark as Resolved</Text>
                             </TouchableOpacity>

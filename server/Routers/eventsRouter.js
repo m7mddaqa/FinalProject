@@ -287,6 +287,25 @@ router.put('/events/:id/incrementArrivedVolunteers', async (req, res) => {
 }
 );
 
+// Get resolved events for a specific user
+router.get('/events/resolved/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
 
+    // Find all resolved events where the user is a participating volunteer
+    const resolvedEvents = await Event.find({
+      resolved: true,
+      'participatingVolunteers.userId': userId
+    })
+    .populate('userId', 'username')
+    .populate('participatingVolunteers.userId', 'username')
+    .sort({ resolvedAt: -1 });
+
+    res.json(resolvedEvents);
+  } catch (err) {
+    console.error('[ERROR] Failed to fetch resolved events:', err.message);
+    res.status(500).json({ error: 'Failed to fetch resolved events' });
+  }
+});
 
 export default router;
