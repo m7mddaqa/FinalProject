@@ -316,7 +316,6 @@ export const handleReport = async (reportType, setShowReportPanel, setVolunteerR
 
         if (!response.ok) {
             const errorData = await response.json();
-            console.error('Server error response:', errorData);
             throw new Error(errorData.error || 'Failed to submit report');
         }
 
@@ -334,7 +333,6 @@ export const handleReport = async (reportType, setShowReportPanel, setVolunteerR
 
         return result;
     } catch (error) {
-        console.error('Error submitting report:', error);
         Alert.alert('Error', error.message || 'Failed to submit report. Please try again.');
         throw error;
     }

@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-const EventSchema = new mongoose.Schema({
+const ResolvedEventSchema = new mongoose.Schema({
     category: {
         type: String,
         enum: ['normal', 'emergency'],
@@ -12,9 +12,8 @@ const EventSchema = new mongoose.Schema({
     },
     points: {
         type: Number,
-        default: 3     // 3 lifes
+        default: 3
     },
-
     location: {
         latitude: {
             type: Number,
@@ -50,7 +49,7 @@ const EventSchema = new mongoose.Schema({
     },
     resolved: {
         type: Boolean,
-        default: false
+        default: true
     },
     verified: {
         type: String,
@@ -90,16 +89,5 @@ const EventSchema = new mongoose.Schema({
     timestamps: true
 });
 
-// Create a compound index for TTL only on unresolved events
-// EventSchema.index({ createdAt: 1, resolved: 1 }, { 
-//     expireAfterSeconds: 3600,
-//     partialFilterExpression: { resolved: false }
-// });
-
-EventSchema.index({ createdAt: 1 }, {
-    expireAfterSeconds: 900,   // 900 s = 15 min
-    partialFilterExpression: { category: 'normal', resolved: false }
- });
-
-const Event = mongoose.model('Event', EventSchema);
-export default Event;
+const ResolvedEvent = mongoose.model('ResolvedEvent', ResolvedEventSchema);
+export default ResolvedEvent;

@@ -69,13 +69,14 @@ const SearchBar = ({
                     }}
                     query={{
                         key: process.env.MapsApiKey,
-                        language: 'en',
-                        location: '31.7683,35.2137',
+                        language: 'es',
+                        location: '4.5709,-74.2973', // Coordenadas centrales aproximadas de Colombia
                         radius: 100000,
-                        components: isInternationalSearch ? undefined : 'country:il',
+                        components: 'country:co', // Solo resultados en Colombia
                         types: ['address', 'establishment', 'geocode'],
                         rankby: 'prominence',
                     }}
+
                     styles={{
                         container: isDarkMode ? styles.searchContainerDark : styles.searchContainer,
                         textInput: isDarkMode ? styles.searchInputDark : styles.searchInput,
@@ -125,9 +126,10 @@ const SearchBar = ({
                     nearbyPlacesAPI="GooglePlacesSearch"
                     GooglePlacesSearchQuery={{
                         rankby: 'prominence',
-                        location: '31.7683,35.2137',
+                        location: '4.5709,-74.2973',
                         radius: 100000,
                     }}
+
                     GooglePlacesDetailsQuery={{
                         fields: 'formatted_address,geometry',
                     }}

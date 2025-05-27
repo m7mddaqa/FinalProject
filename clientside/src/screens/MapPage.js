@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRoute, useFocusEffect } from '@react-navigation/native';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions, Keyboard, Linking, Alert, Image, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions, Keyboard, Linking, Alert, Image, ActivityIndicator, ScrollView, Button } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE, Circle } from 'react-native-maps';
 import MapViewDirections from 'react-native-maps-directions';
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
@@ -29,9 +29,13 @@ import { io } from 'socket.io-client';
 import { useTheme } from '../context/ThemeContext';
 import { Platform } from 'react-native';
 
+
 import { getEventIcon, calculateBearing, incrementArrivedVolunteers, incrementOnWayVolunteers, decrementOnWayVolunteers, fetchVolunteerReports, calculateETA, cancelRide, getManeuverIcon, handleRecenter, renderHistoryItem, handleMenuToggle, getManeuverText, calculateDistanceToRoute, handleReport, saveSearchToHistory, fetchSearchHistory } from '../services/driveHelpers';
 
 const googleMapsApiKey = MapsApiKey;
+
+
+
 
 // Helper function to calculate distance between two points in kilometers
 function calculateDistance(lat1, lon1, lat2, lon2) {
@@ -52,6 +56,8 @@ function deg2rad(deg) {
 }
 
 const NavigationPage = () => {
+    const hasShownArrivalAlert = useRef(false);
+    const promptedEvents = useRef(new Set()); 
     const [origin, setOrigin] = useState(null); //user current location
     const [destination, setDestination] = useState(null);//destination location
     const [instructions, setInstructions] = useState([]); //array of instructions
@@ -134,6 +140,7 @@ const NavigationPage = () => {
         handleMenuToggle(isMenuVisible, slideAnim, setIsMenuVisible);
     };
 
+    
     //function to start navigation with fixed zoom and map rotation.
     const handleStartNavigation = () => {
         if (isNavigating) return; //guard to prevent repeated starts
@@ -163,101 +170,92 @@ const NavigationPage = () => {
     };
 
     const handleResolveReport = async (report) => {
-        try {
-            // Validate report object and ID
-            if (!report) {
-                console.error('Report object is undefined');
-                Alert.alert('Error', 'Invalid report data. Please try again.');
-                return;
-            }
-
-            if (!report._id) {
-                console.error('Report ID is missing:', report);
-                Alert.alert('Error', 'Report ID is missing. Please try again.');
-                return;
-            }
-
-            if (!origin || !origin.latitude || !origin.longitude) {
-                console.error('Current location is missing:', origin);
-                Alert.alert('Error', 'Unable to get your current location. Please try again.');
-                return;
-            }
-
-            console.log('Attempting to resolve report:', {
-                reportId: report._id,
-                reportType: report.type,
-                location: report.location,
-                volunteerLocation: {
-                    latitude: origin.latitude,
-                    longitude: origin.longitude
-                }
-            });
-            
-            const token = await AsyncStorage.getItem('token');
-            if (!token) {
-                console.error('No authentication token found');
-                Alert.alert('Error', 'You must be logged in to resolve reports.');
-                return;
-            }
-
-            const response = await fetch(`${URL}/api/events/${report._id}/resolve`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    volunteerLat: origin.latitude,
-                    volunteerLon: origin.longitude
-                })
-            });
-
-            const data = await response.json();
-            console.log('Resolve response:', data);
-
-            if (!response.ok) {
-                if (response.status === 400 && data.message === 'This event has already been resolved') {
-                    setVolunteerReports(prevReports => 
-                        prevReports.map(r => 
-                            r._id === report._id 
-                                ? { ...r, resolved: true }
-                                : r
-                        )
-                    );
-                    Alert.alert('Notice', 'This event has already been resolved by other volunteers.');
-                    return;
-                }
-                throw new Error(data.message || 'Failed to resolve report');
-            }
-
-            Alert.alert(
-                'Report Resolved',
-                `Successfully resolved the report!\n\nParticipating volunteers:\n${data.participatingVolunteers.map(v => 
-                    `${v.username}: +10 points (New score: ${v.newScore})`
-                ).join('\n')}`,
-                [{ text: 'OK' }]
-            );
-
-            setVolunteerReports(prevReports => 
-                prevReports.map(r => 
-                    r._id === report._id 
-                        ? { ...r, resolved: true, participatingVolunteers: data.participatingVolunteers }
-                        : r
-                )
-            );
-
-            await fetchEvents();
-
-        } catch (error) {
-            console.error('Error resolving report:', error);
-            Alert.alert(
-                'Error',
-                error.message || 'Failed to resolve report. Please try again.',
-                [{ text: 'OK' }]
-            );
+    try {
+        if (!report || !report._id) {
+        console.error('Report object or ID is missing:', report);
+        Alert.alert('Error', 'Invalid report data. Please try again.');
+        return;
         }
-    };
 
+        if (!origin || !origin.latitude || !origin.longitude) {
+        console.error('Current location is missing:', origin);
+        Alert.alert('Error', 'Unable to get your current location. Please try again.');
+        return;
+        }
+
+        console.log('Attempting to resolve report:', {
+        reportId: report._id,
+        reportType: report.type,
+        location: report.location,
+        volunteerLocation: { latitude: origin.latitude, longitude: origin.longitude },
+        });
+
+        const token = await AsyncStorage.getItem('token');
+        if (!token) {
+        console.error('No authentication token found');
+        Alert.alert('Error', 'You must be logged in to resolve reports.');
+        return;
+        }
+
+        const response = await fetch(`${URL}/api/events/${report._id}/resolve`, {
+        method: 'PUT', // Changed to PUT to match backend
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+            volunteerLat: origin.latitude,
+            volunteerLon: origin.longitude,
+        }),
+        });
+
+        const data = await response.json();
+        console.log('Resolve response:', JSON.stringify(data, null, 2));
+
+        if (!response.ok) {
+        if (response.status === 400 && data.message === 'This event has already been resolved') {
+            setVolunteerReports((prevReports) =>
+            prevReports.map((r) =>
+                r._id === report._id ? { ...r, resolved: true } : r
+            )
+            );
+            Alert.alert('Notice', 'This event has already been resolved by other volunteers.');
+            return;
+        }
+        throw new Error(data.message || 'Failed to resolve report');
+        }
+
+        const volunteerMessage = data.participatingVolunteers
+        .map((v) => `${v.username}: +10 points (New score: ${v.newScore})`)
+        .join('\n');
+        const reporterMessage = data.reporter
+        ? `${data.reporter.username}: +10 points (New score: ${data.reporter.newScore})`
+        : 'Unknown: No points awarded (missing reporter data)';
+
+        Alert.alert(
+        'Report Resolved',
+        `Successfully resolved the report!\n\nParticipating Volunteers:\n${volunteerMessage}\n\nReporter:\n${reporterMessage}`,
+        [{ text: 'OK', onPress: () => console.log('Resolution alert dismissed') }]
+        );
+
+        setVolunteerReports((prevReports) =>
+        prevReports.map((r) =>
+            r._id === report._id
+            ? { ...r, resolved: true, participatingVolunteers: data.participatingVolunteers }
+            : r
+        )
+        );
+
+        await fetchEvents();
+    } catch (error) {
+        console.error('Error resolving report:', error);
+        Alert.alert(
+        'Error',
+        error.message || 'Failed to resolve report. Please try again.',
+        [{ text: 'OK' }]
+        );
+    }
+    };
     //function to fetch events
     const fetchEvents = async () => {
         if (origin) {
@@ -292,6 +290,61 @@ const NavigationPage = () => {
             }
         } catch (error) {
             console.error("Error checking route deviation:", error);
+        }
+    };
+
+
+    // ---------------
+    // 1) confirmPresence: calls the backend to subtract/add points
+    // ---------------
+    const confirmPresence = async (eventId, present) => {
+    try {
+        const response = await axios.put(`${URL}/api/events/${eventId}/confirmPresence`, { present });
+        console.log('[INFO] Confirm presence response:', response.data);
+        if (response.data.deleted) {
+        setEvents((prevEvents) => prevEvents.filter((ev) => ev._id !== eventId));
+        } else {
+        fetchEvents(); // Refresh events to update points
+        }
+    } catch (e) {
+        console.error('[ERROR] Error in confirmPresence:', e.response?.data || e.message);
+        Alert.alert('Error', 'Failed to confirm presence. Please try again.');
+    }
+    };
+
+    // ---------------
+    // 2) handleUserLocationChange: asks if the report is still ongoing
+    // ---------------
+    const handleUserLocationChange = (e) => {
+        const { latitude, longitude } = e.nativeEvent.coordinate;
+
+        // Update origin if following user location
+        if (followsUserLocation) {
+            setOrigin({ latitude, longitude });
+        }
+
+        // Only ask about "normal" reports if navigating
+        if (isNavigating) {
+            events.forEach(ev => {
+                if (ev.category === 'normal' && !promptedEvents.current.has(ev._id)) {
+                    const distKm = calculateDistance(
+                        latitude, longitude,
+                        ev.location.latitude,
+                        ev.location.longitude
+                    );
+                    if (distKm < 0.05) { // Within 50 meters
+                        promptedEvents.current.add(ev._id);
+                        Alert.alert(
+                            'Is it still there?',
+                            `Is the ${ev.type} still there?`,
+                            [
+                                { text: 'No', onPress: () => confirmPresence(ev._id, false) },
+                                { text: 'Yes', onPress: () => confirmPresence(ev._id, true) },
+                            ]
+                        );
+                    }
+                }
+            });
         }
     };
 
@@ -474,129 +527,155 @@ const NavigationPage = () => {
 
     // Modify the location tracking useEffect to check for event arrival
     useEffect(() => {
-        if (!origin || !instructions.length) return;
+    if (!origin || !instructions.length || !destination) return;
 
-        let subscription = null;
+    let subscription = null;
+    
 
-        const setupLocationTracking = async () => {
-            try {
-                subscription = await Location.watchPositionAsync({
-                    accuracy: Location.Accuracy.BestForNavigation,
-                    timeInterval: 1000,
-                    distanceInterval: 5,
-                }, location => {
-                    //skip low-accuracy updates
-                    if (location.coords.accuracy > 20) {
-                        console.log('Skipping low accuracy location update:', location.coords.accuracy);
-                        return;
-                    }
-                    const currLoc = {
-                        latitude: location.coords.latitude,
-                        longitude: location.coords.longitude,
-                    };
-                    setOrigin(currLoc);
+    const setupLocationTracking = async () => {
+        try {
+            subscription = await Location.watchPositionAsync({
+                accuracy: Location.Accuracy.BestForNavigation,
+                timeInterval: 1000,
+                distanceInterval: 5,
+            }, location => {
+                // Skip low-accuracy updates
+                if (location.coords.accuracy > 20) {
+                    console.log('Skipping low accuracy location update:', location.coords.accuracy);
+                    return;
+                }
+                const currLoc = {
+                    latitude: location.coords.latitude,
+                    longitude: location.coords.longitude,
+                };
+                setOrigin(currLoc);
 
-                    // Check if we're near any active events
-                    if (isVolunteerUser && volunteerReports.length > 0) {
-                        volunteerReports.forEach(report => {
-                            if (!report.resolved) {
-                                const distance = calculateDistance(
-                                    currLoc.latitude,
-                                    currLoc.longitude,
-                                    report.location.latitude,
-                                    report.location.longitude
-                                );
-                                if (distance <= 0.05) { // Within 50 meters
-                                    console.log('Volunteer arrived at event:', report._id);
-                                    handleVolunteerArrival(report._id);
-                                }
+                // Check if we're near any active events
+                if (isVolunteerUser && volunteerReports.length > 0) {
+                    volunteerReports.forEach(report => {
+                        if (!report.resolved) {
+                            const distance = calculateDistance(
+                                currLoc.latitude,
+                                currLoc.longitude,
+                                report.location.latitude,
+                                report.location.longitude
+                            );
+                            if (distance <= 0.05) { // Within 50 meters for events
+                                console.log('Volunteer arrived at event:', report._id);
+                                handleVolunteerArrival(report._id);
                             }
+                        }
+                    });
+                }
+
+                // Calculate distance to destination in meters
+                const distanceToDestination = calculateDistance(
+                    currLoc.latitude,
+                    currLoc.longitude,
+                    destination.latitude,
+                    destination.longitude
+                ) * 1000; // Convert km to meters
+
+                // Check if user is within 100 meters of the destination
+                if (distanceToDestination < 100 && !hasShownArrivalAlert.current) {
+                    console.log('You have reached your destination.');
+                    Speech.speak('You have arrived at your destination.');
+                    
+                    // Show on-screen alert
+                    Alert.alert(
+                        'Arrival',
+                        'You have arrived at your destination.',
+                        [{ text: 'OK', onPress: () => console.log('Arrival alert dismissed') }]
+                    );
+                    hasShownArrivalAlert.current = true; // Prevent multiple alerts
+
+                    // Reset navigation states
+                    setInstructions([]);
+                    setDestination(null);
+                    setIsNavigating(false);
+                    setFollowsUserLocation(false);
+                    setCurrentStepIndex(0);
+                    setRouteCoordinates([]);
+
+                    // Reset camera to neutral state
+                    if (mapRef.current) {
+                        mapRef.current.animateCamera({
+                            center: currLoc,
+                            heading: 0,
+                            pitch: 0,
+                            zoom: 16,
+                            duration: 700
                         });
+                        lastCamera.current = {
+                            center: currLoc,
+                            heading: 0,
+                            pitch: 0,
+                            zoom: 16
+                        };
                     }
 
-                    //calculate distance to next step in meters
-                    const dLat = (instructions[currentStepIndex].endLocation.lat - currLoc.latitude) * 111000;
-                    const dLon = (instructions[currentStepIndex].endLocation.lng - currLoc.longitude) * 111000 * Math.cos(currLoc.latitude * Math.PI / 180);
-                    const distanceToNextStep = Math.sqrt(dLat * dLat + dLon * dLon);
-
-                    //only check for off-route if we're not very close to the next step
-                    if (distanceToNextStep > 30) {
-                        const offRouteByStep = distanceToNextStep > 150;
-                        let offRouteByRoute = false;
-
-                        if (routeCoordinates.length) {
-                            const distanceFromRoute = calculateDistanceToRoute(currLoc, routeCoordinates);
-                            offRouteByRoute = distanceFromRoute > 100;
-                        }
-
-                        const now = Date.now();
-                        //only reroute if we're significantly off route and haven't rerouted recently
-                        if ((offRouteByStep || offRouteByRoute) && !isRerouting && now - lastRerouteTime.current > 30000) { //cooldown 30 seconds
-                            console.log('User off route. Recalculating...');
-                            Speech.speak('Recalculating...');
-                            setIsRerouting(true);
-                            setForceReroute(prev => !prev);
-                            lastRerouteTime.current = now;
-                        }
+                    // Handle volunteer event arrival
+                    if (isVolunteerOnWay && event?._id) {
+                        console.log("Incrementing arrived volunteer");
+                        incrementArrivedVolunteers(event._id);
+                        decrementOnWayVolunteers(event._id);
+                        setIsVolunteerOnWay(false);
                     }
 
-                    //move to next step if close enough
-                    if (distanceToNextStep < 30) {
-                        const destinationReached =
-                            Math.abs(currLoc.latitude - destination.latitude) < 0.0002 &&
-                            Math.abs(currLoc.longitude - destination.longitude) < 0.0002;
+                    return; // Exit the location update callback
+                }
 
-                        //stop navigation and announce arrival if at destination
-                        if (destinationReached || currentStepIndex === instructions.length - 1) {
-                            console.log('You have reached your destination.');
-                            Speech.speak('You have arrived at your destination.');
-                            
-                            // Reset all navigation-related states
-                            setInstructions([]);
-                            setIsVolunteerOnWay(false);
-                            setDestination(null);
-                            setIsNavigating(false);
-                            setFollowsUserLocation(false);
-                            
-                            // Reset map camera to default view
-                            if (mapRef.current) {
-                                const cameraConfig = Platform.OS === 'ios'
-                                    ? { center: currLoc, heading: 0, pitch: 0, altitude: 1000, duration: 700 }
-                                    : { center: currLoc, heading: 0, pitch: 0, zoom: 15, duration: 700 };
-                                mapRef.current.animateCamera(cameraConfig);
-                                lastCamera.current = cameraConfig;
-                            }
+                // Reset alert flag if navigation restarts
+                if (hasShownArrivalAlert.current && instructions.length > 0) {
+                    hasShownArrivalAlert.current = false;
+                }
 
-                            if (isVolunteerOnWay) {
-                                console.log("incrementing arrived volunteer");
-                                incrementArrivedVolunteers(event._id);
-                                decrementOnWayVolunteers(event._id);
-                            }
-                            return;
-                        }
+                // Calculate distance to next step in meters
+                const dLat = (instructions[currentStepIndex].endLocation.lat - currLoc.latitude) * 111000;
+                const dLon = (instructions[currentStepIndex].endLocation.lng - currLoc.longitude) * 111000 * Math.cos(currLoc.latitude * Math.PI / 180);
+                const distanceToNextStep = Math.sqrt(dLat * dLat + dLon * dLon);
 
-                        //otherwise, go to next step
-                        if (currentStepIndex < instructions.length - 1) {
-                            const nextStep = instructions[currentStepIndex + 1];
-                            Speech.speak(getManeuverText(nextStep.maneuver, nextStep.instruction));
-                            setCurrentStepIndex(prev => prev + 1);
-                        }
+                // Only check for off-route if not very close to the next step
+                if (distanceToNextStep > 30) {
+                    const offRouteByStep = distanceToNextStep > 150;
+                    let offRouteByRoute = false;
+
+                    if (routeCoordinates.length) {
+                        const distanceFromRoute = calculateDistanceToRoute(currLoc, routeCoordinates);
+                        offRouteByRoute = distanceFromRoute > 100;
                     }
 
-                });
-            } catch (error) {
-                console.error('Error setting up location tracking:', error);
-            }
-        };
+                    const now = Date.now();
+                    // Only reroute if significantly off route and haven't rerouted recently
+                    if ((offRouteByStep || offRouteByRoute) && !isRerouting && now - lastRerouteTime.current > 30000) {
+                        console.log('User off route. Recalculating...');
+                        Speech.speak('Recalculating...');
+                        setIsRerouting(true);
+                        setForceReroute(prev => !prev);
+                        lastRerouteTime.current = now;
+                    }
+                }
 
-        setupLocationTracking();
+                // Move to next step if close enough
+                if (distanceToNextStep < 30 && currentStepIndex < instructions.length - 1) {
+                    const nextStep = instructions[currentStepIndex + 1];
+                    Speech.speak(getManeuverText(nextStep.maneuver, nextStep.instruction));
+                    setCurrentStepIndex(prev => prev + 1);
+                }
+            });
+        } catch (error) {
+            console.error('Error setting up location tracking:', error);
+        }
+    };
 
-        return () => {
-            if (subscription && typeof subscription.remove === 'function') {
-                subscription.remove();
-            }
-        };
-    }, [instructions, volunteerReports, isVolunteerUser]);
+    setupLocationTracking();
+
+    return () => {
+        if (subscription && typeof subscription.remove === 'function') {
+            subscription.remove();
+        }
+    };
+}, [instructions, volunteerReports, isVolunteerUser, destination, event, isVolunteerOnWay]);
 
     //handling the recenter button outside of navigation mode
     useEffect(() => {
@@ -679,10 +758,14 @@ const NavigationPage = () => {
 
     useEffect(() => {
         if (destination && instructions.length > 0) {
+            // Only start navigation once
             if (!isNavigating) handleStartNavigation();
         } else if (isNavigating) {
+            // Reset navigation-related state
             setIsNavigating(false);
             setFollowsUserLocation(false);
+            promptedEvents.current.clear(); // Clear prompted events
+            fetchEvents(); // Refresh events to remove irrelevant ones
         }
     }, [destination, instructions, isNavigating]);
 
@@ -741,112 +824,110 @@ const NavigationPage = () => {
 
     //optimized refresh mechanism for volunteer dashboard
     useEffect(() => {
-        let socket;
+    let socket;
 
-        const setupSocket = () => {
-            console.log('[SOCKET] Attempting to connect to:', URL);
-            socket = io(URL, {
-                reconnection: true,
-                reconnectionAttempts: 5,
-                reconnectionDelay: 1000,
-                timeout: 10000,
-                transports: ['websocket', 'polling']
-            });
+    const setupSocket = () => {
+        console.log('[SOCKET] Attempting to connect to:', URL);
+        socket = io(URL, {
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
+        timeout: 10000,
+        transports: ['websocket', 'polling'],
+        });
 
-            socket.on('connect', () => {
-                console.log('[SOCKET] Connected successfully');
-            });
+        socket.on('connect', () => {
+        console.log('[SOCKET] Connected successfully');
+        });
 
-            socket.on('connect_error', (error) => {
-                console.error('[SOCKET] Connection error:', error);
-            });
+        socket.on('connect_error', (error) => {
+        console.error('[SOCKET] Connection error:', error);
+        });
 
-            socket.on('test', (data) => {
-                console.log('[SOCKET] Test event received:', data);
-            });
+        socket.on('test', (data) => {
+        console.log('[SOCKET] Test event received:', data);
+        });
 
-            socket.on('newEvent', async () => {
-                console.log('[SOCKET] Received newEvent');
-                await fetchEvents();
-                if (isVolunteerUser) {
-                    await fetchVolunteerReports(setVolunteerReports);
-                }
-            });
+        socket.on('newEvent', async () => {
+        console.log('[SOCKET] Received newEvent');
+        await fetchEvents();
+        if (isVolunteerUser) {
+            await fetchVolunteerReports(setVolunteerReports);
+        }
+        });
 
-            socket.on('updateReports', async () => {
-                console.log('[SOCKET] Received updateReports');
-                await fetchEvents();
-                if (isVolunteerUser) {
-                    await fetchVolunteerReports(setVolunteerReports);
-                }
-            });
+        socket.on('updateReports', async () => {
+        console.log('[SOCKET] Received updateReports');
+        await fetchEvents();
+        if (isVolunteerUser) {
+            await fetchVolunteerReports(setVolunteerReports);
+        }
+        });
 
-            socket.on('eventResolved', async (data) => {
-                console.log('[SOCKET] Event resolved:', data);
-                // Update local state immediately
-                setVolunteerReports(prevReports => 
-                    prevReports.filter(report => report._id !== data.eventId)
-                );
-                // Then fetch fresh data
-                await fetchEvents();
-                if (isVolunteerUser) {
-                    await fetchVolunteerReports(setVolunteerReports);
-                }
-            });
+        socket.on('eventResolved', async (data) => {
+        console.log('[SOCKET] Event resolved:', data);
+        setVolunteerReports((prevReports) =>
+            prevReports.filter((report) => report._id !== data.eventId)
+        );
+        await fetchEvents();
+        if (isVolunteerUser) {
+            await fetchVolunteerReports(setVolunteerReports);
+        }
+        });
 
-            socket.on('cityAlert', (alert) => {
-                console.log('[SOCKET] Received city alert:', alert);
-                const alertWithId = { ...alert, id: `${alert.city}-${Date.now()}` };
-                setCityAlerts(prev => {
-                    console.log('[SOCKET] Current alerts:', prev);
-                    console.log('[SOCKET] Adding new alert:', alertWithId);
-                    const newAlerts = [...prev, alertWithId];
-                    
-                    // Fit map to show all alerts
-                    if (mapRef.current && newAlerts.length > 0) {
-                        const coordinates = newAlerts.map(alert => ({
-                            latitude: alert.lat,
-                            longitude: alert.lon
-                        }));
-                        
-                        // Add user's current location if available
-                        if (origin) {
-                            coordinates.push(origin);
-                        }
-                        
-                        mapRef.current.fitToCoordinates(coordinates, {
-                            edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
-                            animated: true
-                        });
-                    }
-                    
-                    return newAlerts;
-                });
-                // Remove alert after 1 minute
-                setTimeout(() => {
-                    setCityAlerts(prev => {
-                        console.log('[SOCKET] Removing alert:', alertWithId.id);
-                        return prev.filter(a => a.id !== alertWithId.id);
-                    });
-                }, 60000);
-            });
+        socket.on('eventDeleted', (data) => {
+        console.log('[SOCKET] Event deleted:', data);
+        setEvents((prevEvents) => prevEvents.filter((ev) => ev._id !== data.eventId));
+        });
 
-            socket.on('disconnect', (reason) => {
-                console.log('[SOCKET] Disconnected:', reason);
-            });
+        socket.on('cityAlert', (alert) => {
+        console.log('[SOCKET] Received city alert:', alert);
+        const alertWithId = { ...alert, id: `${alert.city}-${Date.now()}` };
+        setCityAlerts((prev) => {
+            console.log('[SOCKET] Current alerts:', prev);
+            console.log('[SOCKET] Adding new alert:', alertWithId);
+            const newAlerts = [...prev, alertWithId];
 
-            return socket;
-        };
-
-        socket = setupSocket();
-
-        return () => {
-            if (socket) {
-                console.log('[SOCKET] Cleaning up socket connection');
-                socket.disconnect();
+            if (mapRef.current && newAlerts.length > 0) {
+            const coordinates = newAlerts.map((alert) => ({
+                latitude: alert.lat,
+                longitude: alert.lon,
+            }));
+            if (origin) {
+                coordinates.push(origin);
             }
-        };
-    }, []); // Remove dependencies to prevent unnecessary reconnections
+            mapRef.current.fitToCoordinates(coordinates, {
+                edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
+                animated: true,
+            });
+            }
+
+            return newAlerts;
+        });
+        setTimeout(() => {
+            setCityAlerts((prev) => {
+            console.log('[SOCKET] Removing alert:', alertWithId.id);
+            return prev.filter((a) => a.id !== alertWithId.id);
+            });
+        }, 60000);
+        });
+
+        socket.on('disconnect', (reason) => {
+        console.log('[SOCKET] Disconnected:', reason);
+        });
+
+        return socket;
+    };
+
+    socket = setupSocket();
+
+    return () => {
+        if (socket) {
+        console.log('[SOCKET] Cleaning up socket connection');
+        socket.disconnect();
+        }
+    };
+    }, []);
 
     const handleVolunteerPanel = () => {
         setShowReportPanel(false); //close report panel first
@@ -971,40 +1052,35 @@ const NavigationPage = () => {
 
             {/* 🗺️ Map View */}
             {mapRegion && (
-                <MapView
-                    ref={mapRef}
-                    style={styles.map}
-                    provider={PROVIDER_GOOGLE}
-                    showsUserLocation
-                    showsMyLocationButton={false}
-                    showsCompass={false}
-                    rotateEnabled={true}
-                    scrollEnabled={true}
-                    pitchEnabled={true}
-                    zoomEnabled={true}
-                    onUserLocationChange={(e) => {
-                        if (followsUserLocation) {
-                            const { latitude, longitude } = e.nativeEvent.coordinate;
-                            setOrigin({ latitude, longitude });
-                        }
-                    }}
-                    onRegionChangeComplete={(region) => {
-                        setMapRegion(region);
-                    }}
-                    onPanDrag={() => {
-                        isUserInteracting.current = true;
-                    }}
-                    onRegionChange={(region) => {
-                        if (isUserInteracting.current) {
-                            lastCamera.current = {
-                                center: { latitude: region.latitude, longitude: region.longitude },
-                                heading: region.heading,
-                                pitch: region.pitch,
-                                zoom: region.zoom
-                            };
-                        }
-                    }}
-                >
+            <MapView
+                ref={mapRef}
+                style={styles.map}
+                provider={PROVIDER_GOOGLE}
+                showsUserLocation
+                showsMyLocationButton={false}
+                showsCompass={false}
+                rotateEnabled={true}
+                zoomEnabled={true}
+                pitchEnabled={true}   // Keeps inclination
+                onUserLocationChange={handleUserLocationChange}
+
+                onRegionChangeComplete={(region) => {
+                setMapRegion(region);
+                }}
+                onPanDrag={() => {
+                isUserInteracting.current = true;
+                }}
+                onRegionChange={(region) => {
+                if (isUserInteracting.current) {
+                    lastCamera.current = {
+                    center: { latitude: region.latitude, longitude: region.longitude },
+                    heading: region.heading,
+                    pitch: region.pitch,
+                    zoom: region.zoom
+                    };
+                }
+                }}
+            >
                     {/* 📍 Destination Marker */}
                     {destination && <Marker coordinate={destination} title="Destination" />}
 
@@ -1208,17 +1284,18 @@ const NavigationPage = () => {
             )}
 
             {/* 👥 Volunteer Dashboard Panel */}
-            {showVolunteerPanel && (
-                <VolunteerPanel
-                    setShowVolunteerPanel={setShowVolunteerPanel}
-                    volunteerReports={volunteerReports}
-                    handleResolveReport={handleResolveReport}
-                    isMenuVisible={isMenuVisible}
-                    showAllSteps={showAllSteps}
-                />
-            )}
+                    {showVolunteerPanel && (
+                    <VolunteerPanel
+                        setShowVolunteerPanel={setShowVolunteerPanel}
+                        volunteerReports={volunteerReports}
+                        handleResolveReport={handleResolveReport}
+                        isMenuVisible={isMenuVisible}
+                        showAllSteps={showAllSteps}
+                    />
+                    )}
 
             {/* Add compass button */}
+            { !showReportPanel && (
             <TouchableOpacity 
                 style={isDarkMode ? styles.compassButtonDark : styles.compassButton}
                 onPress={handleCompassPress}
@@ -1229,6 +1306,7 @@ const NavigationPage = () => {
                     color={isDarkMode ? '#FFFFFF' : '#000000'} 
                 />
             </TouchableOpacity>
+            )}
         </View>
     );
 

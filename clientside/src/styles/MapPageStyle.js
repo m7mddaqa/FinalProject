@@ -793,9 +793,9 @@ export const styles = StyleSheet.create({
     },
     checkDetailsButton: {
         paddingVertical: 8,
-        paddingHorizontal: 16,
+        paddingHorizontal: 24,
         borderRadius: 8,
-        flex: 1,
+        minWidth: 90,
         marginRight: 8,
     },
     checkDetailsButtonText: {
@@ -806,10 +806,10 @@ export const styles = StyleSheet.create({
     },
     resolveButton: {
         paddingVertical: 8,
-        paddingHorizontal: 16,
+        paddingHorizontal: 24,
         borderRadius: 8,
         backgroundColor: '#34C759',
-        flex: 1,
+        minWidth: 90,
         marginLeft: 8,
     },
     resolveButtonDark: {
@@ -975,5 +975,21 @@ export const styles = StyleSheet.create({
         paddingHorizontal: 8,
         paddingTop: 8,
         paddingBottom: 8,
+    },
+    fakeButton: {
+        paddingVertical: 8,
+        paddingHorizontal: 24,
+        borderRadius: 8,
+        backgroundColor: '#999',
+        minWidth: 90,
+        marginLeft: 8,
+    },
+    fakeButtonDark: {
+        paddingVertical: 8,
+        paddingHorizontal: 24,
+        borderRadius: 8,
+        backgroundColor: '#666',
+        minWidth: 90,
+        marginLeft: 8,
     },
 });
