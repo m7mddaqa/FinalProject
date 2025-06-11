@@ -67,18 +67,19 @@ const SearchBar = ({
                             Keyboard.dismiss();
                         }
                     }}
-                    query={{
+                        query={{
                         key: process.env.MapsApiKey,
-                        language: 'es',
-                        location: '4.5709,-74.2973', // Coordenadas centrales aproximadas de Colombia
+                        language: 'en',
+                        location: '31.0461,34.8516', //  Israel
                         radius: 100000,
-                        components: 'country:co', // Solo resultados en Colombia
+                        components: 'country:il', //  Israel
                         types: ['address', 'establishment', 'geocode'],
                         rankby: 'prominence',
-                    }}
+                        }}
 
                     styles={{
                         container: isDarkMode ? styles.searchContainerDark : styles.searchContainer,
+                        container: styles.searchContainer,
                         textInput: isDarkMode ? styles.searchInputDark : styles.searchInput,
                         listView: isDarkMode ? styles.searchListDark : styles.searchList,
                         row: isDarkMode ? styles.suggestionRowDark : styles.suggestionRow,
@@ -124,11 +125,12 @@ const SearchBar = ({
                         useOnPlatform: 'web',
                     }}
                     nearbyPlacesAPI="GooglePlacesSearch"
-                    GooglePlacesSearchQuery={{
+                        GooglePlacesSearchQuery={{
                         rankby: 'prominence',
-                        location: '4.5709,-74.2973',
+                        location: '31.0461,34.8516',
                         radius: 100000,
-                    }}
+                        }}
+
 
                     GooglePlacesDetailsQuery={{
                         fields: 'formatted_address,geometry',
@@ -172,5 +174,4 @@ const SearchBar = ({
         </>
     );
 };
-
 export default SearchBar;

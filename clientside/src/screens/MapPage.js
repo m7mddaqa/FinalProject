@@ -58,11 +58,11 @@ function deg2rad(deg) {
 const NavigationPage = () => {
     const hasShownArrivalAlert = useRef(false);
     const promptedEvents = useRef(new Set()); 
-    const [origin, setOrigin] = useState(null); //user current location
+    
     const [destination, setDestination] = useState(null);//destination location
     const [instructions, setInstructions] = useState([]); //array of instructions
     const [currentStepIndex, setCurrentStepIndex] = useState(0);  //current step index
-    const [mapRegion, setMapRegion] = useState(null); //map region
+    
     const [isMenuVisible, setIsMenuVisible] = useState(false);
     const slideAnim = useRef(new Animated.Value(Dimensions.get('window').height + 50)).current; //animation value for menu
     const navigation = useNavigation();
@@ -103,6 +103,18 @@ const NavigationPage = () => {
     const isUserInteracting = useRef(false);
     //new: reference to save last camera center
     const lastCamera = useRef({});
+
+    const [origin, setOrigin] = useState({
+    latitude: 32.0853,
+    longitude: 34.7818
+    });
+
+const [mapRegion, setMapRegion] = useState({
+    latitude: 32.0853,
+    longitude: 34.7818,
+    latitudeDelta: 0.05,
+    longitudeDelta: 0.05
+});
 
     //functions:
 
@@ -1057,6 +1069,7 @@ const NavigationPage = () => {
                 style={styles.map}
                 provider={PROVIDER_GOOGLE}
                 showsUserLocation
+                initialRegion={mapRegion}
                 showsMyLocationButton={false}
                 showsCompass={false}
                 rotateEnabled={true}

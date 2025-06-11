@@ -1,7 +1,6 @@
-// In App.js in a new project
+
 import 'react-native-get-random-values';
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { URL } from '@env';
@@ -19,13 +18,14 @@ import VolunteersScoreboard from './src/screens/VolunteersScoreboard';
 import UsersScoreboard from './src/screens/UsersScoreboard';
 import ResolvedEventsScreen from './src/screens/ResolvedEventsScreen';
 import ResolvedEventDetailsScreen from './src/screens/ResolvedEventDetailsScreen';
+import CreatedEventsScreen from './src/screens/CreatedEventsScreen'; 
 
 const Stack = createNativeStackNavigator();
+
 function MyStack() {
   return (
     <Stack.Navigator>
-
-<Stack.Screen
+      <Stack.Screen
         name="MapPage"
         component={MapPage}
         options={{
@@ -45,23 +45,23 @@ function MyStack() {
         }}
       />
 
-<Stack.Screen
-  name="SignupPage"
-  component={SignupPage}
-  options={({ navigation }) => ({
-    title: 'Signup for an account',
-    headerStyle: { backgroundColor: '#067ef5' },
-    headerTintColor: '#fff',
-    headerTitleStyle: { fontWeight: 'bold' },
-    headerLeft: (props) => (
-      <HeaderBackButton
-        {...props}
-        onPress={() => navigation.replace('LoginPage')}
-        style={{ marginLeft: -5 }}
+      <Stack.Screen
+        name="SignupPage"
+        component={SignupPage}
+        options={({ navigation }) => ({
+          title: 'Signup for an account',
+          headerStyle: { backgroundColor: '#067ef5' },
+          headerTintColor: '#fff',
+          headerTitleStyle: { fontWeight: 'bold' },
+          headerLeft: (props) => (
+            <HeaderBackButton
+              {...props}
+              onPress={() => navigation.replace('LoginPage')}
+              style={{ marginLeft: -5 }}
+            />
+          ),
+        })}
       />
-    ),
-  })}
-/>
 
       <Stack.Screen
         name="ProfilePage"
@@ -134,6 +134,14 @@ function MyStack() {
         }}
       />
 
+      <Stack.Screen
+        name="CreatedEventsScreen" 
+        component={CreatedEventsScreen}
+        options={{
+          title: 'Created Events',
+          headerShown: false,
+        }}
+      />
     </Stack.Navigator>
   );
 }

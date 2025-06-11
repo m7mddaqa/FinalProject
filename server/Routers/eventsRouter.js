@@ -111,6 +111,28 @@ router.post('/events', upload.single('image'), upload.validateFile, upload.error
     res.status(500).json({ error: 'Database error while saving event' });
   }
 });
+router.get('/events/user', async (req, res) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) {
+    return res.status(401).json({ error: 'Missing authorization token' });
+  }
+
+  let userId;
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    userId = decoded.id;
+  } catch (err) {
+    return res.status(403).json({ error: 'Invalid or expired token' });
+  }
+
+  try {
+    const userEvents = await Event.find({ userId }).sort({ createdAt: -1 }); 
+    res.status(200).json(userEvents);
+  } catch (err) {
+    console.error('[ERROR] Fetching user events:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 //fetch events
 router.get('/events', async (req, res) => {

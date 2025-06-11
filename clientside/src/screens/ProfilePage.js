@@ -4,17 +4,37 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { isLoggedIn } from '../services/getToken';
 import * as ImagePicker from 'expo-image-picker';
+import { useTheme } from '../context/ThemeContext';
+import { decode as atob } from 'base-64';
+
 import axios from 'axios';
 
 const API_URL = process.env.URL;
 console.log('API URL:', API_URL);
 
+if (!global.atob) global.atob = atob;
+
+const parseJwt = (token) => {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = global.atob(base64);
+    return JSON.parse(jsonPayload);
+  } catch (e) {
+    return {};
+  }
+};
+
 const ProfilePage = ({ navigation }) => {
+    const [role, setRole] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
     const [userData, setUserData] = useState(null);
     const [token, setToken] = useState(null);
     const [showImagePickerModal, setShowImagePickerModal] = useState(false);
+    const { isDarkMode } = useTheme();
+    const [userCreatedEvents, setUserCreatedEvents] = useState([]);
+
 
     useEffect(() => {
         const fetchData = async () => {
@@ -24,8 +44,11 @@ const ProfilePage = ({ navigation }) => {
                     navigation.navigate('MapPage');
                     return;
                 }
-
                 setToken(tokenData.token);
+                const decoded = parseJwt(tokenData.token);
+                console.log("Decoded JWT:", decoded);
+                setRole(decoded.userType); // "user" o "volunteer"
+                await fetchUserCreatedEvents(tokenData.token);
                 console.log('Token:', tokenData.token);
                 console.log('User ID:', tokenData.userId);
 
@@ -49,6 +72,19 @@ const ProfilePage = ({ navigation }) => {
         };
 
         fetchData();
+
+        const fetchUserCreatedEvents = async (token) => {
+  try {
+    const response = await axios.get(`${API_URL}/api/events/user`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    setUserCreatedEvents(response.data);
+    console.log('[INFO] Eventos creados por el usuario:', response.data);
+  } catch (err) {
+    console.error('[ERROR] fetchUserCreatedEvents:', err);
+  }
+};
+
     }, []);
 
     const handleImagePick = async (source) => {
@@ -168,111 +204,164 @@ const ProfilePage = ({ navigation }) => {
         });
     };
 
-    return (
-        <View style={styles.container}>
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginTop: 20 }}>
-                    <Ionicons name="arrow-back-outline" size={28} color="black" />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>Profile</Text>
-                <TouchableOpacity onPress = {() => navigation.navigate('MapPage')} style={{ marginTop: 20 }}>
-                    <Ionicons name="close-outline" size={28} color="black" />
-                </TouchableOpacity>
-            </View>
+return (
+    <View style={[styles.container, isDarkMode && styles.containerDark]}>
+        <View style={styles.header}>
+            <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginTop: 20 }}>
+                <Ionicons name="arrow-back-outline" size={28} color={isDarkMode ? "white" : "black"} />
+            </TouchableOpacity>
+            <Text style={[styles.headerTitle, isDarkMode && styles.headerTitleDark]}>Profile</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('MapPage')} style={{ marginTop: 20 }}>
+                <Ionicons name="close-outline" size={28} color={isDarkMode ? "white" : "black"} />
+            </TouchableOpacity>
+        </View>
 
-            <View style={styles.profileCard}>
-                <TouchableOpacity onPress={() => setShowImagePickerModal(true)}>
-                    <View style={styles.avatarContainer}>
-                        {userData?.profileImage ? (
-                            <Image
-                                source={{ uri: getImageUrl(userData.profileImage) }}
-                                style={styles.avatar}
-                                onError={(e) => {
-                                    console.error('Image loading error:', e.nativeEvent.error);
-                                    console.error('Attempted URL:', getImageUrl(userData.profileImage));
-                                }}
-                            />
-                        ) : (
-                            <View style={styles.defaultAvatar}>
-                                <Ionicons name="person-circle-outline" size={120} color="#067ef5" />
-                            </View>
-                        )}
-                        <View style={[
-                            styles.editIconContainer,
-                            userData?.profileImage && styles.editIconContainerHidden
-                        ]}>
-                            <Ionicons name="camera-outline" size={20} color="white" />
+        <View style={[styles.profileCard, isDarkMode && styles.profileCardDark]}>
+            <TouchableOpacity onPress={() => setShowImagePickerModal(true)}>
+                <View style={styles.avatarContainer}>
+                    {userData?.profileImage ? (
+                        <Image
+                            source={{ uri: getImageUrl(userData.profileImage) }}
+                            style={styles.avatar}
+                            onError={(e) => {
+                                console.error('Image loading error:', e.nativeEvent.error);
+                                console.error('Attempted URL:', getImageUrl(userData.profileImage));
+                            }}
+                        />
+                    ) : (
+                        <View style={styles.defaultAvatar}>
+                            <Ionicons name="person-circle-outline" size={120} color="#067ef5" />
                         </View>
-                    </View>
-                </TouchableOpacity>
-
-                <Text style={styles.profileName}>{userData?.username}</Text>
-                <Text style={styles.pointsTitle}>POINTS</Text>
-                <Text style={styles.pointsValue}>{userData?.score || 0}</Text>
-                <Text style={styles.userInfo}>Username: {userData?.username}</Text>
-                <Text style={styles.userInfo}>Joined: {formatDate(userData?.createdAt)}</Text>
-            </View>
-
-            {/* Image Picker Modal */}
-            <Modal
-                visible={showImagePickerModal}
-                transparent={true}
-                animationType="slide"
-                onRequestClose={() => setShowImagePickerModal(false)}
-            >
-                <View style={styles.modalContainer}>
-                    <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>Change Profile Picture</Text>
-                        <TouchableOpacity
-                            style={styles.modalButton}
-                            onPress={() => handleImagePick('gallery')}
-                        >
-                            <Ionicons name="images-outline" size={24} color="#067ef5" />
-                            <Text style={styles.modalButtonText}>Choose from Gallery</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={styles.modalButton}
-                            onPress={() => handleImagePick('camera')}
-                        >
-                            <Ionicons name="camera-outline" size={24} color="#067ef5" />
-                            <Text style={styles.modalButtonText}>Take a Photo</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={[styles.modalButton, styles.cancelButton]}
-                            onPress={() => setShowImagePickerModal(false)}
-                        >
-                            <Text style={styles.cancelButtonText}>Cancel</Text>
-                        </TouchableOpacity>
+                    )}
+                    <View style={[
+                        styles.editIconContainer,
+                        userData?.profileImage && styles.editIconContainerHidden
+                    ]}>
+                        <Ionicons name="camera-outline" size={20} color="white" />
                     </View>
                 </View>
-            </Modal>
+            </TouchableOpacity>
 
-            <View style={styles.menu}>
+            <Text style={[styles.profileName, isDarkMode && styles.profileNameDark]}>{userData?.username}</Text>
+            <Text style={[styles.pointsTitle, isDarkMode && styles.pointsTitleDark]}>POINTS</Text>
+            <Text style={styles.pointsValue}>{userData?.score || 0}</Text>
+            <Text style={[styles.userInfo, isDarkMode && styles.userInfoDark]}>Username: {userData?.username}</Text>
+            <Text style={[styles.userInfo, isDarkMode && styles.userInfoDark]}>Joined: {formatDate(userData?.createdAt)}</Text>
+        </View>
+
+        {/* Image Picker Modal */}
+        <Modal
+            visible={showImagePickerModal}
+            transparent={true}
+            animationType="slide"
+            onRequestClose={() => setShowImagePickerModal(false)}
+        >
+            <View style={styles.modalContainer}>
+                <View style={[styles.modalContent, isDarkMode && styles.modalContentDark]}>
+                    <Text style={[styles.modalTitle, isDarkMode && styles.modalTitleDark]}>Change Profile Picture</Text>
+                    <TouchableOpacity style={styles.modalButton} onPress={() => handleImagePick('gallery')}>
+                        <Ionicons name="images-outline" size={24} color="#067ef5" />
+                        <Text style={[styles.modalButtonText, isDarkMode && styles.modalButtonTextDark]}>Choose from Gallery</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.modalButton} onPress={() => handleImagePick('camera')}>
+                        <Ionicons name="camera-outline" size={24} color="#067ef5" />
+                        <Text style={[styles.modalButtonText, isDarkMode && styles.modalButtonTextDark]}>Take a Photo</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => setShowImagePickerModal(false)}>
+                        <Text style={styles.cancelButtonText}>Cancel</Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
+        </Modal>
+
+        <View style={[styles.menu, isDarkMode && styles.menuDark]}>
+            {/* Resolved Events - Solo para volunteers */}
+            {role === 'volunteer' && (
                 <TouchableOpacity
-                    style={styles.menuItem}
+                    style={[styles.menuItem, isDarkMode && styles.menuItemDark]}
                     onPress={() => navigation.navigate('ResolvedEvents')}
                 >
                     <View style={styles.menuItemLeft}>
                         <Ionicons name="checkmark-circle-outline" size={24} color="#067ef5" />
-                        <Text style={styles.menuItemText}>Resolved Events</Text>
+                        <Text style={[styles.menuItemText, isDarkMode && styles.menuItemTextDark]}>Resolved Events</Text>
                     </View>
                     <View style={styles.menuItemRight}>
-                        <Ionicons name="chevron-forward" size={24} color="#666" />
+                        <Ionicons name="chevron-forward" size={24} color={isDarkMode ? "#aaa" : "#666"} />
                     </View>
                 </TouchableOpacity>
+            )}
 
-                <TouchableOpacity style={styles.menuItem} onPress={handleSignOut}>
+            {/* Created Events - Solo para users (no volunteers) */}
+            {role === 'user' && (
+                <TouchableOpacity
+                    style={[styles.menuItem, isDarkMode && styles.menuItemDark]}
+                    onPress={() => navigation.navigate('CreatedEventsScreen')}
+                >
                     <View style={styles.menuItemLeft}>
-                        <Ionicons name="log-out-outline" size={24} color="#FF3B30" />
-                        <Text style={[styles.menuItemText, { color: '#FF3B30' }]}>Sign Out</Text>
+                        <Ionicons name="document-text-outline" size={24} color="#067ef5" />
+                        <Text style={[styles.menuItemText, isDarkMode && styles.menuItemTextDark]}>Created Events</Text>
+                    </View>
+                    <View style={styles.menuItemRight}>
+                        <Ionicons name="chevron-forward" size={24} color={isDarkMode ? "#aaa" : "#666"} />
                     </View>
                 </TouchableOpacity>
-            </View>
+            )}
+
+            {/* Sign Out - Para todos */}
+            <TouchableOpacity style={[styles.menuItem, isDarkMode && styles.menuItemDark]} onPress={handleSignOut}>
+                <View style={styles.menuItemLeft}>
+                    <Ionicons name="log-out-outline" size={24} color="#FF3B30" />
+                    <Text style={[styles.menuItemText, { color: '#FF3B30' }]}>Sign Out</Text>
+                </View>
+            </TouchableOpacity>
         </View>
-    );
+    </View>
+);
 };
 
 const styles = StyleSheet.create({
+
+    //dark mode styles
+    containerDark: {
+        backgroundColor: '#121212',
+    },
+    headerTitleDark: {
+        color: '#ffffff',
+    },
+    profileCardDark: {
+        backgroundColor: '#1e1e1e',
+    },
+    profileNameDark: {
+        color: '#ffffff',
+    },
+    pointsTitleDark: {
+        color: '#bbbbbb',
+    },
+    userInfoDark: {
+        color: '#aaaaaa',
+    },
+    menuDark: {
+        backgroundColor: '#1e1e1e',
+    },
+    menuItemDark: {
+        borderBottomColor: '#333333',
+    },
+    menuItemTextDark: {
+        color: '#ffffff',
+    },
+    menuItemValueDark: {
+        color: '#aaaaaa',
+    },
+    modalContentDark: {
+        backgroundColor: '#1e1e1e',
+    },
+    modalTitleDark: {
+        color: '#ffffff',
+    },
+    modalButtonTextDark: {
+        color: '#067ef5',
+    },
+    //end dark mode styles
     container: {
         flex: 1,
         backgroundColor: '#f9f9f9',
